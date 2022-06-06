@@ -1,0 +1,244 @@
+# Protoscope Language Specification.
+
+# Protosocpe is a text format for representing valid Protobuf wire-format
+# encodings, directly inspired by https://github.com/google/der-ascii, and
+# has a significant overlap in syntax with it.
+#
+# First, it is reversible, so all encoding variations must be represented in the
+# language directly. This includes the distinctions between different integer
+# encodings, packed primitive fields, and groups.
+#
+# Second, Protoscope is intended to create both valid and invalid encodings. It
+# has minimal knowledge of the wire format, but it is ignorant of actual
+# schemata specified by DescriptorProtos. Elements in the input file may be
+# freely replaced by raw byte strings, and there is no requirement that the
+# resulting output is anything resembling a valid proto.
+#
+# Protoscope is *not* a replacement for the text format; instead, it is intended
+# to be used for manipulating encoded protos where the precise encoding is
+# relevant, such as debugging a codec or creating test data.
+#
+# This specification is a valid Protoscope file.
+
+
+# A Protoscope file is a sequence of tokens. Most tokens resolve to a byte
+# string which is emitted as soon as it is processed.
+
+# Tokens are separated by whitespace, which is defined to be space (0x20), TAB
+# (0x09), CR (0x0d), and LF (0x0a). Apart from acting as a token separator,
+# whitespace is not significant.
+
+# Comments begin with # and run to the end of the line. Comments are treated as
+# whitespace.
+
+
+# Quoted strings.
+
+"Quoted strings are delimited by double quotes. Backslash denotes escape
+sequences. Legal escape sequences are: \\ \" \x00 \n. \x00 consumes two hex
+digits and emits a byte. Otherwise, any byte before the closing quote,
+including a newline, is emitted as-is."
+
+# Tokens in the file are emitted one after another, so the following lines
+# produce the same output:
+"hello world"
+"hello " "world"
+
+# The Protobuf wire format only deals in UTF-8 when it deals with text at all,
+# so there is no equivalent of DER-ASCII's UTF-16/32 string literals.
+
+
+# Hex literals.
+
+# Backticks denote hex literals. Either uppercase or lowercase is legal, but no
+# characters other than hexadecimal digits may appear. A hex literal emits the
+# decoded byte string.
+`00`
+`abcdef`
+`AbCdEf`
+
+
+# Integers.
+
+# Tokens which match /-?[0-9]+/ or /-?0x[0-9a-fA-F]+/ are integer tokens.
+# They encode into a Protobuf varint (base 128).
+456
+-0xffFF
+
+# Signed integers encode as their 64-bit two's complement by default. If an
+# integer is suffixed with z, it uses the zigzag encoding instead.
+-2z 3  # Equivalent tokens.
+
+# An integer may instead by suffixed with i32 or i64, which indicates it should
+# be encoded as a fixed-width integer.
+0i32
+-23i64
+
+# An integer may follow a 'long-form:N' token. This will cause the varint to
+# have N more bytes than it needs to successfully encode. For example, the
+# following are equivalent:
+long-form:3 3
+`83808000`
+
+
+# Booleans.
+
+# The following tokens emit `01` and `00`, respectively.
+true
+false
+
+
+# Floats.
+
+# Tokens that match /-?[0-9]+\.[0-9]+([eE]-?[0-9]+)?/ or
+# /-?0x[0-9a-fA-F]+\.[0-9a-fA-F]+([pP]-?[0-9]+)?/ are floating-point
+# tokens. They encode to a IEEE 754 binary64 value.
+1.0
+9.423e-2
+-0x1.ffp52
+
+# Decimal floats are only guaranteed a particular encoding when conversion from
+# decimal to binary is exact. Hex floats always have an exact conversion. The
+# i32 prefix from above may be used to specify a 32-bit float (i64 is permitted,
+# but redundant).
+1.5i32
+0xf.fi64
+
+# The strings inf32, inf64, -inf32, and -inf64 are recognized as shorthands for
+# 32-bit and 64-bit infinities. There is no shorthand for NaN (since there are 
+# so many of them), and it is best spelled out as a fixed-size hex int.
+inf32
+-inf64
+
+# Tag expressions.
+
+# An integer followed by a : denotes a tag expression. This encodes the tag of
+# a Protobuf field. This is identical to an ordinary integer, except that a
+# wire type between 0 and 7 is prepended via the expression 
+#
+#  tag := int << 3 | wireType
+#
+# The integer specifies the field number, while what follows after the :
+# specifies the field type. In the examples below, no whitespace may be
+# present around the : rune.
+#
+# Field numbers may be hex, signed, and zigzag per the syntax above, but not
+# fixed-width. They may have a long-form prefix.
+
+1:VARINT  # A varint.
+2:I64     # A fixed-width, 64-bit blob.
+3:LEN     # A length-prefixed blob.
+4:SGROUP  # A start-group marker.
+5:EGROUP  # An end-group marker.
+6:I32     # A fixed-width, 32-bit blob.
+
+0x10:0  # Also a varint, explicit value for the type.
+8:6     # Invalid wire type (6 and 7 are unused).
+
+# This is an error: the wire type must be between 0 and 7.
+# 9:8
+
+# If the : is instead followed by any rune not matching /[\w-]/, the scanner
+# will seek forward to the next token. If it is a fixed-width integer or a
+# float, the wire type will be inferred to be I32 or I64 as appropriate; if it
+# is a {, or a 'long-form:N' followed by a {, the type is inferred as LEN;
+# otherwise, it defaults to VARINT.
+
+1: 55z
+2: 1.23
+3: {"text"}
+6: -1i32
+
+
+# Length prefixes.
+
+# Matching curly brace tokens denote length prefixes. They emit a varint-encoded
+# length prefix followed by the encoding of the brace contents.
+#
+# It may optionally be preceded by 'long-form:N', as an integer would, to
+# introduce redundant bytes in the encoding of the length prefix.
+
+# This is a string field. Note that 23:'s type is inferred to be LEN.
+23: {"my cool string"}
+
+# This is a nested message field.
+24: {
+  1: 5
+  2: {"nested string"}
+}
+
+# This is a packed repeated int field.
+25: { 1 2 3 4 5 6 7 }
+
+# This string field's length prefix will be 3, rather than one, bytes.
+23: long-form:2 {"non-minimally-prefixed"}
+
+
+# Examples.
+
+# These primitives may be combined with raw byte strings to produce other
+# encodings.
+
+# This is another way to write a message, using an explicit length
+2:LEN 4
+  "abcd"
+
+# This allows us to insert the wrong length.
+2:LEN 5
+  "abcd"
+
+# The wrong wire type can be used with no consequences.
+5:I64 "stuff"
+
+
+# Disassembler.
+
+# Although the conversion from Protoscope to a byte string is well-defined, the
+# inverse is not. A given byte string may have multiple disassemblies. The
+# disassembler heuristically attempts to give a useful conversion for its
+# input.
+#
+# It is a goal that any valid protobuf input will be decoded reasonably,
+# although this is impossible in general, because length-prefixed blobs can be
+# either strings or protobufs, and fixed-width ints can also be floats. We try
+# to strike a balance that produces mostly readable output.
+#
+# Note that the output of the disassembler is not stable, and highly heuristic.
+# The only guarantee is that it will reassemble to the original input byte for
+# byte.
+#
+# The algorithm is as follows:
+#
+# 1. Greedily parse tags out of the input. If an invalid tag is found, encode
+#    the remaining bytes as quoted strings or hex literals. Wire types 6 and 7
+#    are treated as "invalid".
+#
+# 2. Encode the tag as N:, unless the wire type is 3 or 4, in which case encode
+#    it as N:SGROUP or N:EGROUP.
+#
+# 3. If the wire type is 0, parse a varint and encode it as if it were an int64.
+#    There is no useful way to distinguish sint32/sint64 here.
+#
+# 4. If the wire type is 1 or 5, parse eight or four bytes and interpret that as
+#    a float of appropriate size.
+#
+#    a. If the float is a NaN, print the bytes as a fixed-width hex integer.
+#
+#    b. If the float is infinite, print inf32/inf64 as appropriate.
+#
+#    c. If the float is zero or has an exponent that is not close to the largest
+#       or smallest possible exponents, print as a decimal float.
+#
+#       i. If this would produce a non-round-trip-able value, print as a hex
+#          float instead.
+#
+#    d. Otherwise, print a fixed-width decimal integer.
+#
+# 5. If the wire type is 2:
+#
+#    a. Try to parse the contents of the field as a message, and print those
+#       fields wrapped in {} no failures occur. (-all-fields-are-messages will
+#       instead cause all fields that parsed successfully to be emitted followed
+#       by hex strings with the remaining content.)
+#
+#    b. Output the contents as quoted strings or hex literals.
