@@ -1,6 +1,6 @@
 # Protoscope Language Specification.
 
-# Protosocpe is a text format for representing valid Protobuf wire-format
+# Protoscope is a text format for representing valid Protobuf wire-format
 # encodings, directly inspired by https://github.com/google/der-ascii, and
 # has a significant overlap in syntax with it.
 #
