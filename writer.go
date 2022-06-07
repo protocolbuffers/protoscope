@@ -35,49 +35,81 @@ type WriterOptions struct {
 }
 
 func Write(src []byte, opts WriterOptions) string {
-	w := writer{opts: opts, dest: new(strings.Builder)}
+	w := writer{opts: opts}
 
 	for len(src) > 0 {
+		w.newLine()
 		rest, ok := w.decodeField(src)
 		if !ok {
+			w.lines = w.lines[:len(w.lines)-1]
 			break
 		}
 		src = rest
 	}
 
 	if len(src) > 0 {
+		w.newLine()
 		w.dumpHexString(src)
 	}
 
-	fmt.Fprintln(w.dest)
-	return strings.TrimPrefix(w.dest.String(), "\n")
+	var out strings.Builder
+	for _, line := range w.lines {
+		for i := 0; i < line.indent; i++ {
+			fmt.Fprint(&out, "  ")
+		}
+		fmt.Fprint(&out, line.text.String())
+		if comment := line.comment.String(); comment != "" {
+			fmt.Fprint(&out, "  # ", comment)
+		}
+		fmt.Fprintln(&out)
+	}
+
+	return out.String()
+}
+
+type line struct {
+	text, comment *strings.Builder
+	indent 				int
 }
 
 type writer struct {
 	opts   WriterOptions
 	indent int
-	dest   *strings.Builder
+	lines  []line
+}
+
+func (w *writer) write(args ...any) {
+	fmt.Fprint(w.lines[len(w.lines) - 1].text, args...)
+}
+
+func (w *writer) writef(f string, args ...any) {
+	fmt.Fprintf(w.lines[len(w.lines) - 1].text, f, args...)
+}
+
+func (w *writer) commentf(f string, args ...any) {
+	fmt.Fprintf(w.lines[len(w.lines) - 1].comment, f, args...)
 }
 
 func (w *writer) newLine() {
-	fmt.Fprint(w.dest, "\n")
-	for i := 0; i < w.indent; i++ {
-		fmt.Fprint(w.dest, "  ")
-	}
+	w.lines = append(w.lines, line {
+		text: new(strings.Builder),
+		comment: new(strings.Builder),
+		indent: w.indent,
+	})
 }
 
 func (w *writer) dumpHexString(src []byte) {
-	fmt.Fprint(w.dest, "`")
+	w.write("`")
 
 	for i, b := range src {
 		if i > 0 && i%40 == 0 {
-			fmt.Fprint(w.dest, "`")
+			w.write("`")
 			w.newLine()
-			fmt.Fprint(w.dest, "`")
+			w.write("`")
 		}
-		fmt.Fprintf(w.dest, "%02x", b)
+		w.writef("%02x", b)
 	}
-	fmt.Fprint(w.dest, "`")
+	w.write("`")
 }
 
 func (w *writer) decodeField(src []byte) ([]byte, bool) {
@@ -92,11 +124,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		return nil, false
 	}
 
-	w.newLine()
 	if extra > 0 {
-		fmt.Fprintf(w.dest, "long-form:%d ", extra)
+		w.writef("long-form:%d ", extra)
 	}
-	fmt.Fprintf(w.dest, "%d:", value>>3)
+	w.writef("%d:", value>>3)
 
 	switch value & 0x7 {
 	case 0:
@@ -107,13 +138,13 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src = rest
 
 		if extra > 0 {
-			fmt.Fprintf(w.dest, " long-form:%d", extra)
+			w.writef(" long-form:%d", extra)
 		}
-		fmt.Fprintf(w.dest, " %d", int64(value))
+		w.writef(" %d", int64(value))
 	case 3:
-		fmt.Fprintf(w.dest, "SGROUP")
+		w.writef("SGROUP")
 	case 4:
-		fmt.Fprintf(w.dest, "EGROUP")
+		w.writef("EGROUP")
 
 	case 1:
 		// Assume this is a float by default.
@@ -125,16 +156,17 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		value := math.Float64frombits(bits)
 
 		if math.IsInf(value, 1) {
-			fmt.Fprint(w.dest, " inf64")
+			w.write(" inf64")
 		} else if math.IsInf(value, -1) {
-			fmt.Fprint(w.dest, " -inf64")
+			w.write(" -inf64")
 		} else if math.IsNaN(value) {
-			fmt.Fprintf(w.dest, " 0x%x", bits)
+			w.writef(" 0x%xi64", bits)
 		} else {
 			if s := ftoa(bits); s != "" {
-				fmt.Fprintf(w.dest, " %s  # %#xi64", s, int64(bits))
+				w.writef(" %s", s)
+				w.commentf("%#xi64", int64(bits))
 			} else {
-				fmt.Fprintf(w.dest, " %di64", int64(bits))
+				w.writef(" %di64", int64(bits))
 			}
 		}
 	case 5:
@@ -147,16 +179,18 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		value := float64(math.Float32frombits(bits))
 
 		if math.IsInf(value, 1) {
-			fmt.Fprint(w.dest, " inf32")
+			w.write(" inf32")
 		} else if math.IsInf(value, -1) {
-			fmt.Fprint(w.dest, " -inf32")
+			w.write(" -inf32")
 		} else if math.IsNaN(value) {
-			fmt.Fprintf(w.dest, " 0x%x", bits)
+			w.writef(" 0x%xi32", bits)
 		} else {
 			if s := ftoa(bits); s != "" {
-				fmt.Fprintf(w.dest, " %si32  # %#xi32", s, int32(bits))
+				w.writef(" %si32", s)
+				w.commentf("%#xi32", int32(bits))
+
 			} else {
-				fmt.Fprintf(w.dest, " %di32", int32(bits))
+				w.writef(" %di32", int32(bits))
 			}
 		}
 
@@ -175,65 +209,51 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src = src[int(value):]
 
 		if extra > 0 {
-			fmt.Fprintf(w.dest, " long-form:%d", extra)
+			w.writef(" long-form:%d", extra)
 		}
-		fmt.Fprint(w.dest, " {")
+		w.write(" {")
 
 		w.indent++
 
 		// First, assume this is a message.
-		var builder, perLoop strings.Builder
-		old := w.dest
-		if w.opts.AllFieldsAreMessages {
-			// Make sure to capture the contents of every run individually, so that
-			// we avoid getting half of a printout for a bad field.
-			w.dest = &perLoop
-		} else {
-			w.dest = &builder
-		}
-
+		startLine := len(w.lines)
 		src2 := delimited
 		for len(src2) > 0 {
+			w.newLine()
 			s, ok := w.decodeField(src2)
 			if !ok {
+				// Clip off an incompletely printed line.
+				w.lines = w.lines[:len(w.lines)-1]
 				break
-			}
-
-			if w.opts.AllFieldsAreMessages {
-				builder.WriteString(perLoop.String())
-				perLoop.Reset()
 			}
 			src2 = s
 		}
-		w.dest = old
 
 		if len(src2) == 0 || (w.opts.AllFieldsAreMessages && len(src2) < len(delimited)) {
-			fields := builder.String()
-			lines := strings.Count(fields, "\n")
-			if lines <= 1 && len(src2) == 0 {
-				fields = strings.TrimSpace(fields)
-			}
-
-			fmt.Fprint(w.dest, fields)
-			if len(src2) > 0 {
+			oneLiner := len(w.lines) == startLine + 1 && len(src2) == 0 
+			if oneLiner {
+				line := w.lines[startLine]
+				w.lines = w.lines[:startLine]
+				w.writef(" %s ", line.text.String())
+				w.commentf("%s", line.comment.String())
+			} else if len(src2) > 0 {
 				w.newLine()
 				w.dumpHexString(src2)
 			}
 
 			w.indent--
-			if lines > 1 || len(src2) > 0 {
+			if !oneLiner {
 				w.newLine()
 			}
-			fmt.Fprint(w.dest, "}")
+			w.write("}")
 			return src, true
+		} else {
+			w.lines = w.lines[:startLine]
 		}
 
 		// Otherwise, maybe it's a UTF-8 string.
-		if !w.opts.NoQuotedStrings {
+		if !w.opts.NoQuotedStrings && utf8.Valid(delimited) {
 			runes := utf8.RuneCount(delimited)
-			if runes == -1 {
-				goto justBytes
-			}
 
 			s := string(delimited)
 			unprintable := 0
@@ -249,41 +269,41 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			if runes > 80 {
 				w.newLine()
 			}
-			fmt.Fprint(w.dest, "\"")
+			w.write("\"")
 
 			for i, r := range s {
 				if i != 0 && i%80 == 0 {
-					fmt.Fprint(w.dest, "\"")
+					w.write("\"")
 					w.newLine()
-					fmt.Fprint(w.dest, "\"")
+					w.write("\"")
 				}
 
 				switch r {
 				case '\n':
-					fmt.Fprint(w.dest, "\\n")
+					w.write("\\n")
 				case '\\':
-					fmt.Fprint(w.dest, "\\\\")
+					w.write("\\\\")
 				case '"':
-					fmt.Fprint(w.dest, "\\\"")
+					w.write("\\\"")
 				default:
 					if !unicode.IsGraphic(r) {
 						enc := make([]byte, 4)
 						enc = enc[:utf8.EncodeRune(enc, r)]
 						for _, b := range enc {
-							fmt.Fprintf(w.dest, "\\x%02x", b)
+							w.writef("\\x%02x", b)
 						}
 					} else {
-						fmt.Fprintf(w.dest, "%c", r)
+						w.writef("%c", r)
 					}
 				}
 			}
 
-			fmt.Fprint(w.dest, "\"")
+			w.write("\"")
 			w.indent--
 			if runes > 80 {
 				w.newLine()
 			}
-			fmt.Fprint(w.dest, "}")
+			w.write("}")
 			return src, true
 		}
 
@@ -297,7 +317,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		if len(delimited) > 40 {
 			w.newLine()
 		}
-		fmt.Fprint(w.dest, "}")
+		w.write("}")
 	case 6, 7:
 		return nil, false
 	}

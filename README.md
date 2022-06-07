@@ -25,6 +25,7 @@ dissassembling with `protoscope`, making edits, and then reassembling with
 They may also be used to inspect proto files (or things that look like them.)
 
 For the language specification and basic examples, see [language.txt](/language.txt).
+Example disassembly can be found under [./testdata](/testdata).
 
 ## Backwards compatibility
 
