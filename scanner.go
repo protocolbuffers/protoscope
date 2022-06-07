@@ -30,7 +30,7 @@ import (
 
 // The contents of language.text.
 //go:embed language.txt
-var LanguageText string
+var LanguageTxt string
 
 // A Position describes a location in the input stream.
 //
@@ -343,12 +343,19 @@ loop:
 			base = 16
 		}
 
-		value, err := strconv.ParseInt(strings.TrimPrefix(match[1], "0x"), base, 64)
+		// Use ParseUint so that we get the biggest unsigned ints possible.
+		uvalue, err := strconv.ParseUint(strings.TrimPrefix(match[1], "0x"), base, 64)
 		if err != nil {
 			return token{}, &ParseError{start, err}
 		}
+		value := int64(uvalue)
 
-		if strings.HasPrefix(match[0], "-") {
+		// The special value -9223372036854775808 is interesting, because it has the
+		// same bit representation as 9223372036854775808, since it is MinInt64.
+		if strings.HasPrefix(match[0], "-") && value != math.MinInt64 {
+			if value < 0 {
+				return token{}, &ParseError{start, fmt.Errorf("negation overflows: '%s'", match[0])}
+			}
 			value = -value
 		}
 
@@ -409,8 +416,11 @@ loop:
 			enc = encodeVarint(nil, uint64(value), len)
 		case "i32":
 			wireType = 5
-			if value >= (1<<32) || value < -(1<<32) {
-				return token{}, &ParseError{start, fmt.Errorf("%s does not fit in 32 bits", symbol)}
+			if value > math.MaxUint32 || value < math.MinInt32 {
+				return token{}, &ParseError{start, fmt.Errorf("'%s' does not fit in 32 bits", symbol)}
+			}
+			if value > math.MinInt32 {
+				value -= math.MaxUint32 + 1
 			}
 			enc = make([]byte, 4)
 			binary.LittleEndian.PutUint32(enc, uint32(value))
@@ -439,23 +449,29 @@ loop:
 			fp += "p0"
 		}
 
-		value, err := strconv.ParseFloat(fp, 64)
-		if err != nil {
-			return token{}, &ParseError{start, err}
-		}
-
 		var enc []byte
 		var wireType int
 		switch match[2] {
 		case "i32":
 			wireType = 5
-			if float64(float32(value)) != value {
-				return token{}, &ParseError{start, fmt.Errorf("%s does not fit in 32 bits", symbol)}
+			value, err := strconv.ParseFloat(fp, 32)
+			if err != nil {
+				return token{}, &ParseError{start, err}
+			}
+			if math.IsInf(value, 0) || math.IsNaN(value) || math.Abs(value) > math.MaxFloat32 {
+				return token{}, &ParseError{start, fmt.Errorf("'%s' does not fit in a IEEE 754 binary32", match[0])}
 			}
 			enc = make([]byte, 4)
 			binary.LittleEndian.PutUint32(enc, math.Float32bits(float32(value)))
 		case "", "i64":
 			wireType = 1
+			value, err := strconv.ParseFloat(fp, 64)
+			if err != nil {
+				return token{}, &ParseError{start, err}
+			}
+			if math.IsInf(value, 0) || math.IsNaN(value) {
+				return token{}, &ParseError{start, fmt.Errorf("'%s' does not fit in a IEEE 754 binary64", match[0])}
+			}
 			enc = make([]byte, 8)
 			binary.LittleEndian.PutUint64(enc, math.Float64bits(value))
 		default:
@@ -481,7 +497,7 @@ loop:
 	case "inf32":
 		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0x7f}, Pos: s.pos}, nil
 	case "-inf32":
-		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0x7f}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0xff}, Pos: s.pos}, nil
 	case "inf64":
 		return token{Kind: tokenBytes, WireType: 1, Value: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f}, Pos: s.pos}, nil
 	case "-inf64":

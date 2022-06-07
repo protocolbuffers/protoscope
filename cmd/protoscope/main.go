@@ -39,7 +39,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION...] [INPUT]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Assemble a Protoscope file to binary, or inspect binary data as Protoscope text.\n\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\n%s\n", protoscope.LanguageText)
+		fmt.Fprintf(os.Stderr, "\n%s\n", protoscope.LanguageTxt)
 	}
 
 	flag.Parse()
