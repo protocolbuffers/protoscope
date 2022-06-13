@@ -14,10 +14,10 @@ constructing messages (such as field tags, varints, and length prefixes). A disa
 is included that uses heuristics to try convert encoded Protobuf into Protoscope,
 although the heuristics are necessarily imperfect.
 
-We provide the Go package `github.com/google/protoscope`, as well as the `protoscope`
+We provide the Go package `github.com/protocolbuffers/protoscope`, as well as the `protoscope`
 tool, which can be installed with the Go tool via
 
-    go install github.com/google/protoscope/cmd/protoscope...@latest
+    go install github.com/protocolbuffers/protoscope/cmd/protoscope...@latest
 
 These tools may be used to create test inputs by taking an existing proto,
 dissassembling with `protoscope`, making edits, and then reassembling with

@@ -1,4 +1,4 @@
-module github.com/google/protoscope
+module github.com/protocolbuffers/protoscope
 
 go 1.18
 

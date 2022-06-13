@@ -23,7 +23,7 @@ import (
 
 	_ "embed"
 
-	"github.com/google/protoscope"
+	"github.com/protocolbuffers/protoscope"
 )
 
 var (
