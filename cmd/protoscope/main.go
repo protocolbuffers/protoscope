@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package main
 
 import (
@@ -27,10 +26,10 @@ import (
 )
 
 var (
-	outPath = flag.String("o", "", "output file to use (defaults to stdout)")
+	outPath  = flag.String("o", "", "output file to use (defaults to stdout)")
 	assemble = flag.Bool("s", false, "whether to treat the input as a Protoscope source file")
 
-	noQuotedStrings = flag.Bool("no-quoted-strings", false, "assume no fields in the input proto are strings")
+	noQuotedStrings      = flag.Bool("no-quoted-strings", false, "assume no fields in the input proto are strings")
 	allFieldsAreMessages = flag.Bool("all-fields-are-messages", false, "try really hard to disassemble all fields as messages")
 )
 
@@ -80,7 +79,7 @@ func main() {
 		}
 	} else {
 		outBytes = []byte(protoscope.Write(inBytes, protoscope.WriterOptions{
-			NoQuotedStrings: *noQuotedStrings,
+			NoQuotedStrings:      *noQuotedStrings,
 			AllFieldsAreMessages: *allFieldsAreMessages,
 		}))
 	}
@@ -95,7 +94,7 @@ func main() {
 		}
 		defer outFile.Close()
 	}
-	
+
 	if _, err = outFile.Write(outBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing output: %s\n", err)
 		os.Exit(1)

@@ -69,7 +69,7 @@ func Write(src []byte, opts WriterOptions) string {
 
 type line struct {
 	text, comment *strings.Builder
-	indent 				int
+	indent        int
 }
 
 type writer struct {
@@ -79,22 +79,22 @@ type writer struct {
 }
 
 func (w *writer) write(args ...any) {
-	fmt.Fprint(w.lines[len(w.lines) - 1].text, args...)
+	fmt.Fprint(w.lines[len(w.lines)-1].text, args...)
 }
 
 func (w *writer) writef(f string, args ...any) {
-	fmt.Fprintf(w.lines[len(w.lines) - 1].text, f, args...)
+	fmt.Fprintf(w.lines[len(w.lines)-1].text, f, args...)
 }
 
 func (w *writer) commentf(f string, args ...any) {
-	fmt.Fprintf(w.lines[len(w.lines) - 1].comment, f, args...)
+	fmt.Fprintf(w.lines[len(w.lines)-1].comment, f, args...)
 }
 
 func (w *writer) newLine() {
-	w.lines = append(w.lines, line {
-		text: new(strings.Builder),
+	w.lines = append(w.lines, line{
+		text:    new(strings.Builder),
 		comment: new(strings.Builder),
-		indent: w.indent,
+		indent:  w.indent,
 	})
 }
 
@@ -230,7 +230,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 		if len(src2) == 0 || (w.opts.AllFieldsAreMessages && len(src2) < len(delimited)) {
-			oneLiner := len(w.lines) == startLine + 1 && len(src2) == 0 
+			oneLiner := len(w.lines) == startLine+1 && len(src2) == 0
 			if oneLiner {
 				line := w.lines[startLine]
 				w.lines = w.lines[:startLine]

@@ -15,9 +15,9 @@
 package protoscope
 
 import (
+	"embed"
 	"strings"
 	"testing"
-	"embed"
 
 	"github.com/google/go-cmp/cmp"
 )
