@@ -59,6 +59,7 @@ const (
 	tokenLongForm
 	tokenLeftCurly
 	tokenRightCurly
+	tokenGroupCurly
 	tokenEOF
 )
 
@@ -102,6 +103,9 @@ type token struct {
 	// Length, for a tokenLongForm token, is the number of bytes to use to
 	// encode the length, not including the initial one.
 	Length int
+	// FieldNumber, if not -1, indicates that this was a tag token. This is used
+	// for implementing group syntax.
+	FieldNumber int64
 }
 
 var (
@@ -297,6 +301,13 @@ again:
 			}
 		}
 		goto again
+	case '!':
+		s.advance(1)
+		if s.Input[s.pos.Offset] != '{' {
+			return token{}, &ParseError{s.pos, errors.New("expected { after !")}
+		}
+		s.advance(1)
+		return token{Kind: tokenGroupCurly, Pos: s.pos}, nil
 	case '{':
 		s.advance(1)
 		return token{Kind: tokenLeftCurly, Pos: s.pos}, nil
@@ -325,7 +336,7 @@ again:
 loop:
 	for !s.isEOF(0) {
 		switch s.Input[s.pos.Offset] {
-		case ' ', '\t', '\n', '\r', '{', '}', '[', ']', '`', '"', '#':
+		case ' ', '\t', '\n', '\r', '{', '}', '[', ']', '`', '"', '#', '!':
 			break loop
 		default:
 			s.advance(1)
@@ -359,6 +370,7 @@ loop:
 			value = -value
 		}
 
+		var fieldNumber int64 = -1
 		inferredType := false
 		if match[3] != "" {
 			if match[2] == "i32" || match[2] == "i64" {
@@ -397,6 +409,11 @@ loop:
 				return token{}, &ParseError{start, errors.New("a tag's wire type must be between 0 and 7")}
 			}
 
+			if value>>61 != 0 && value>>61 != -1 {
+				return token{}, &ParseError{start, errors.New("field number too large for three extra bits for the wire type.")}
+			}
+			fieldNumber = value
+
 			value <<= 3
 			value |= wireType
 		}
@@ -432,7 +449,14 @@ loop:
 			panic("unreachable")
 		}
 
-		return token{Kind: tokenBytes, InferredType: inferredType, WireType: wireType, Value: enc, Pos: s.pos}, nil
+		return token{
+			Kind:         tokenBytes,
+			InferredType: inferredType,
+			WireType:     wireType,
+			Value:        enc,
+			Pos:          s.pos,
+			FieldNumber:  fieldNumber,
+		}, nil
 	}
 
 	match := regexpDecFp.FindStringSubmatch(symbol)
@@ -478,7 +502,13 @@ loop:
 			panic("unreachable")
 		}
 
-		return token{Kind: tokenBytes, WireType: wireType, Value: enc, Pos: s.pos}, nil
+		return token{
+			Kind:        tokenBytes,
+			WireType:    wireType,
+			Value:       enc,
+			Pos:         s.pos,
+			FieldNumber: -1,
+		}, nil
 	}
 
 	if match := regexpLongForm.FindStringSubmatch(symbol); match != nil {
@@ -486,22 +516,22 @@ loop:
 		if err != nil {
 			return token{}, &ParseError{start, err}
 		}
-		return token{Kind: tokenLongForm, Length: int(l)}, nil
+		return token{Kind: tokenLongForm, Length: int(l), Pos: s.pos}, nil
 	}
 
 	switch symbol {
 	case "true":
-		return token{Kind: tokenBytes, Value: []byte{1}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, Value: []byte{1}, Pos: s.pos, FieldNumber: -1}, nil
 	case "false":
-		return token{Kind: tokenBytes, Value: []byte{0}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, Value: []byte{0}, Pos: s.pos, FieldNumber: -1}, nil
 	case "inf32":
-		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0x7f}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0x7f}, Pos: s.pos, FieldNumber: -1}, nil
 	case "-inf32":
-		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0xff}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, WireType: 5, Value: []byte{0x00, 0x00, 0x80, 0xff}, Pos: s.pos, FieldNumber: -1}, nil
 	case "inf64":
-		return token{Kind: tokenBytes, WireType: 1, Value: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, WireType: 1, Value: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f}, Pos: s.pos, FieldNumber: -1}, nil
 	case "-inf64":
-		return token{Kind: tokenBytes, WireType: 1, Value: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xff}, Pos: s.pos}, nil
+		return token{Kind: tokenBytes, WireType: 1, Value: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xff}, Pos: s.pos, FieldNumber: -1}, nil
 	}
 
 	return token{}, fmt.Errorf("unrecognized symbol %q", symbol)
@@ -516,15 +546,20 @@ loop:
 func (s *Scanner) exec(leftCurly *token) ([]byte, error) {
 	var out []byte
 	var lengthModifier *token
+	var groupStack []int64
 	inferredTypeIndex := -1
+	lastToken := token{FieldNumber: -1}
 	for {
 		token, err := s.next(&lengthModifier)
 		if err != nil {
 			return nil, err
 		}
-		if lengthModifier != nil && token.Kind != tokenLeftCurly {
-			return nil, &ParseError{lengthModifier.Pos, errors.New("length modifier was not followed by '{' or varint")}
+		if lengthModifier != nil && token.Kind != tokenLeftCurly && !(token.Kind == tokenRightCurly && len(groupStack) != 0) {
+			return nil, &ParseError{lengthModifier.Pos, errors.New("length modifier was not followed by '{', '}', or varint")}
 		}
+		prevToken := lastToken
+		lastToken = token
+
 		switch token.Kind {
 		case tokenBytes:
 			if inferredTypeIndex != -1 {
@@ -550,31 +585,48 @@ func (s *Scanner) exec(leftCurly *token) ([]byte, error) {
 			}
 			var lengthOverride int
 			if lengthModifier != nil {
-				if lengthModifier.Kind == tokenLongForm {
-					lengthOverride = lengthModifier.Length
-				}
+				lengthOverride = lengthModifier.Length
 			}
 			out = encodeVarint(out, uint64(len(child)), lengthOverride)
 			out = append(out, child...)
 			lengthModifier = nil
+		case tokenGroupCurly:
+			if prevToken.FieldNumber == -1 || inferredTypeIndex == -1 {
+				return nil, &ParseError{token.Pos, errors.New("group !{} must immediately follow untyped field number")}
+			}
+
+			out[inferredTypeIndex] |= byte(3)
+			inferredTypeIndex = -1
+			groupStack = append(groupStack, prevToken.FieldNumber)
 		case tokenRightCurly:
 			if inferredTypeIndex != -1 {
 				inferredTypeIndex = -1
 			}
 
-			if leftCurly != nil {
+			if len(groupStack) != 0 {
+				innerGroup := groupStack[len(groupStack)-1]
+				groupStack = groupStack[:len(groupStack)-1]
+
+				var lengthOverride int
+				if lengthModifier != nil {
+					lengthOverride = lengthModifier.Length
+				}
+				out = encodeVarint(out, uint64(innerGroup<<3|4), lengthOverride)
+				lengthModifier = nil
+			} else if leftCurly != nil {
 				return out, nil
+			} else {
+				return nil, &ParseError{token.Pos, errors.New("unmatched '}'")}
 			}
-			return nil, &ParseError{token.Pos, errors.New("unmatched '}'")}
 		case tokenEOF:
 			if inferredTypeIndex != -1 {
 				inferredTypeIndex = -1
 			}
 
-			if leftCurly == nil {
+			if leftCurly == nil && len(groupStack) == 0 {
 				return out, nil
 			}
-			return nil, &ParseError{leftCurly.Pos, errors.New("unmatched '{'")}
+			return nil, &ParseError{prevToken.Pos, errors.New("unmatched '{'")}
 		default:
 			panic(token)
 		}

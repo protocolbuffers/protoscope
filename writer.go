@@ -47,6 +47,12 @@ func Write(src []byte, opts WriterOptions) string {
 		src = rest
 	}
 
+	// Order does not matter for fixing up unclosed groups
+	for _, g := range w.groups {
+		w.resetGroup(g)
+		w.indent--
+	}
+
 	if len(src) > 0 {
 		w.newLine()
 		w.dumpHexString(src)
@@ -72,10 +78,16 @@ type line struct {
 	indent        int
 }
 
+type groupInfo struct {
+	line  int
+	field uint64
+}
+
 type writer struct {
 	opts   WriterOptions
 	indent int
 	lines  []line
+	groups []groupInfo
 }
 
 func (w *writer) write(args ...any) {
@@ -112,6 +124,24 @@ func (w *writer) dumpHexString(src []byte) {
 	w.write("`")
 }
 
+func (w *writer) resetGroup(g groupInfo) {
+	// Do some surgery on the line with the !{ to replace it with an SGROUP.
+	start := w.lines[g.line].text
+	startOld := start.String()
+	start.Reset()
+	start.WriteString(startOld[:len(startOld)-len(" !{")])
+	start.WriteString("SGROUP")
+	// Unindent everything that was speculatively indented forwards.
+	// This is quadratic as hell, but only goes to hell when we have lots and lots
+	// of bad groups, and Protoscope isn't exactly intended for unfriendly inputs.
+	if g.line == len(w.lines)-1 {
+		return
+	}
+	for _, line := range w.lines[g.line+1 : len(w.lines)-1] {
+		line.indent--
+	}
+}
+
 func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	rest, value, extra, ok := decodeVarint(src)
 	if !ok {
@@ -142,9 +172,55 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 		w.writef(" %d", int64(value))
 	case 3:
-		w.writef("SGROUP")
+		w.writef(" !{")
+		w.indent++
+		w.groups = append(w.groups, groupInfo{line: len(w.lines) - 1, field: value >> 3})
 	case 4:
-		w.writef("EGROUP")
+		if len(w.groups) == 0 {
+			w.writef("EGROUP")
+		} else {
+			w.lines[len(w.lines)-1].indent--
+			w.indent--
+			lastGroup := w.groups[len(w.groups)-1]
+			w.groups = w.groups[:len(w.groups)-1]
+
+			if lastGroup.field == value>>3 {
+				w.lines[len(w.lines)-1].text.Reset()
+
+				groupLen := len(w.lines) - 2 - lastGroup.line
+				switch groupLen {
+				case 0:
+					// If this is an empty group, merge it into one line.
+					w.lines = w.lines[:len(w.lines)-1]
+					if extra > 0 {
+						w.writef("long-form:%d", extra)
+					}
+				case 1:
+					// If there is a single line, merge it into one line. This
+					// requires somewhat more care to avoid crushing comments.
+					groupStart := w.lines[lastGroup.line]
+					groupInner := w.lines[lastGroup.line+1]
+					groupStart.text.WriteString(groupInner.text.String())
+					groupInner.text.Reset()
+					groupStart.comment.WriteString(groupInner.comment.String())
+					groupInner.comment.Reset()
+					w.lines = w.lines[:len(w.lines)-2]
+					if extra > 0 {
+						w.writef(" long-form:%d", extra)
+					}
+				default:
+					if extra > 0 {
+						w.lines[len(w.lines)-1].indent++
+						w.writef("long-form:%d", extra)
+						w.newLine()
+					}
+				}
+				w.writef("}")
+			} else {
+				w.resetGroup(lastGroup)
+				w.writef("EGROUP")
+			}
+		}
 
 	case 1:
 		// Assume this is a float by default.
@@ -218,6 +294,8 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		// First, assume this is a message.
 		startLine := len(w.lines)
 		src2 := delimited
+		outerGroups := w.groups
+		w.groups = nil
 		for len(src2) > 0 {
 			w.newLine()
 			s, ok := w.decodeField(src2)
@@ -229,12 +307,19 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			src2 = s
 		}
 
+		// Order does not matter for fixing up unclosed groups
+		for _, g := range w.groups {
+			w.resetGroup(g)
+			w.indent--
+		}
+		w.groups = outerGroups
+
 		if len(src2) == 0 || (w.opts.AllFieldsAreMessages && len(src2) < len(delimited)) {
 			oneLiner := len(w.lines) == startLine+1 && len(src2) == 0
 			if oneLiner {
 				line := w.lines[startLine]
 				w.lines = w.lines[:startLine]
-				w.writef(" %s ", line.text.String())
+				w.writef("%s", line.text.String())
 				w.commentf("%s", line.comment.String())
 			} else if len(src2) > 0 {
 				w.newLine()
