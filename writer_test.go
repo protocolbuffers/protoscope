@@ -40,15 +40,15 @@ func TestGoldens(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range dir {
-		if !strings.HasPrefix(d.Name(), ".pb") {
+		if !strings.HasSuffix(d.Name(), ".pb") {
 			continue
 		}
 
-		pb, err := testdata.ReadFile(d.Name())
+		pb, err := testdata.ReadFile("testdata/" + d.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
-		goldenText, err := testdata.ReadFile(d.Name() + ".golden")
+		goldenText, err := testdata.ReadFile("testdata/" + d.Name() + ".golden")
 		if err != nil {
 			t.Fatal(err)
 		}

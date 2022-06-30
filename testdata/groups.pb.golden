@@ -1,0 +1,17 @@
+1: !{
+  1: 101
+  2: 202i32
+  3: {"eieio"}
+}
+2:SGROUP
+3:EGROUP
+4:EGROUP
+5: !{6: !{}}
+6: !{long-form:5}
+7: !{1: 1 long-form:5}
+7: !{
+  1: 1
+  1: 1
+  long-form:5
+}
+10:SGROUP

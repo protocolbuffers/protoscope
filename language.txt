@@ -110,6 +110,7 @@ false
 inf32
 -inf64
 
+
 # Tag expressions.
 
 # An integer followed by a : denotes a tag expression. This encodes the tag of
@@ -142,12 +143,14 @@ inf32
 # will seek forward to the next token. If it is a fixed-width integer or a
 # float, the wire type will be inferred to be I32 or I64 as appropriate; if it
 # is a {, or a 'long-form:N' followed by a {, the type is inferred as LEN;
-# otherwise, it defaults to VARINT.
+# if it is a '!', the type is inferred as SGROUP; otherwise, it defaults to
+# VARINT.
 
 1: 55z
 2: 1.23
 3: {"text"}
 6: -1i32
+8: !{42}
 
 
 # Length prefixes.
@@ -172,6 +175,24 @@ inf32
 
 # This string field's length prefix will be 3, rather than one, bytes.
 23: long-form:2 {"non-minimally-prefixed"}
+
+
+# Groups
+
+# If matching curly braces are prefixed with a ! (no spaces before the first
+# {), it denotes a group. Encoding a group requires a field number, so the !{}
+# must come immediately before a tag expression without an explicit type (which
+# will be inferred to be SGROUP). The closing brace will generate a
+# corresponding EGROUP-typed tag to match the SGROUP tag.
+26: !{
+  1: 55z
+  2: 1.4
+  3: {"abcd"}
+}
+
+# long-form:N may be the last token between a group's braces, which will be
+# applied to the EGROUP tag.
+27: !{long-form:3}
 
 
 # Examples.
@@ -213,8 +234,8 @@ inf32
 #    the remaining bytes as quoted strings or hex literals. Wire types 6 and 7
 #    are treated as "invalid".
 #
-# 2. Encode the tag as N:, unless the wire type is 3 or 4, in which case encode
-#    it as N:SGROUP or N:EGROUP.
+# 2. Encode the tag as N:, unless the wire type is 4, in which case encode it as
+#    N:EGROUP. However, see below for cases when a wire type 3 tag precedes it.
 #
 # 3. If the wire type is 0, parse a varint and encode it as if it were an int64.
 #    There is no useful way to distinguish sint32/sint64 here.
@@ -242,3 +263,17 @@ inf32
 #       by hex strings with the remaining content.)
 #
 #    b. Output the contents as quoted strings or hex literals.
+#
+# 6. If the wire type is 3:
+#
+#    a. Encode !{ to begin a group and save the field number on the group stack.
+#
+#    b. Upon coming to a wire type 4 tag, check if it matches the top of the
+#       group stack. (Pop the stack unconditionally.)
+#
+#    c. If it does, close the group with a } and do not emit a tag expression.
+#       Emit a long-form:N as necessary.
+#
+#    d. If it doesn't, re-encode the wire type 3 tag as N:SGROUP, and encode the
+#       wire type 4 tag as above. If a type 2 message ends before the group is
+#       closed, or the input reaches EOF, this step also applies.

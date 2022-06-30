@@ -407,6 +407,14 @@ func TestScan(t *testing.T) {
 				0x00,
 			},
 		},
+
+		{
+			name: "max field number",
+			text: "0x1fffffffffffffff:0",
+			want: []byte{
+				0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+			},
+		},
 		{
 			name: "bad named wire type",
 			text: "1:LMAO",
@@ -414,6 +422,10 @@ func TestScan(t *testing.T) {
 		{
 			name: "wire type not a u3",
 			text: "1:8",
+		},
+		{
+			name: "field number too big",
+			text: "0x2000000000000000:0",
 		},
 
 		{
@@ -497,12 +509,67 @@ func TestScan(t *testing.T) {
 			text: "{",
 		},
 		{
+			name: "unclosed group",
+			text: "1: !{",
+		},
+		{
 			name: "unopened prefix",
 			text: "}",
 		},
 		{
 			name: "long end-of-prefix",
 			text: "{long-form:2}",
+		},
+
+		{
+			name: "empty group",
+			text: "1: !{}",
+			want: []byte{0x0b, 0x0c},
+		},
+		{
+			name: "group with stuff",
+			text: `5: !{1: 5 "foo"}`,
+			want: concat(
+				0x2b,
+				0x08, 0x05,
+				"foo",
+				0x2c,
+			),
+		},
+		{
+			name: "nested groups",
+			text: `1:!{2:!{3:!{"lmao"}}}`,
+			want: concat(
+				0x0b,
+				0x13,
+				0x1b,
+				"lmao",
+				0x1c,
+				0x14,
+				0x0c,
+			),
+		},
+
+		{
+			name: "nested groups and length prefixes",
+			text: `1:!{2:{3:!{{"lmao"}}}}`,
+			want: concat(
+				0x0b,
+				0x12, 0x07,
+				0x1b,
+				0x04, "lmao",
+				0x1c,
+				0x0c,
+			),
+		},
+
+		{
+			name: "bare group",
+			text: "!{}",
+		},
+		{
+			name: "typed group",
+			text: "1:SGROUP !{}",
 		},
 
 		{
@@ -547,6 +614,7 @@ func TestScan(t *testing.T) {
 				0x11, num2le(1.23),
 				0x1a, 0x04, "text",
 				0x35, 0xff, 0xff, 0xff, 0xff,
+				0x43, 42, 0x44,
 
 				0xba, 0x01, 14, "my cool string",
 
@@ -557,6 +625,15 @@ func TestScan(t *testing.T) {
 				0xca, 0x01, 0x07, 1, 2, 3, 4, 5, 6, 7,
 
 				0xba, 0x01, 0x96, 0x80, 0x00, "non-minimally-prefixed",
+
+				0xd3, 0x01,
+				0x08, 0x6e,
+				0x11, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0xf6, 0x3f,
+				0x1a, 0x04, "abcd",
+				0xd4, 0x01,
+
+				0xdb, 0x01,
+				0xdc, 0x81, 0x80, 0x80, 0x00,
 
 				0x12, 0x04, "abcd",
 				0x12, 0x05, "abcd",
