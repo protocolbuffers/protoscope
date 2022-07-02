@@ -1,0 +1,22 @@
+1:SGROUP
+  1: 101
+  2: 202i32
+  3: {"eieio"}
+1:EGROUP
+2:SGROUP
+3:EGROUP
+4:EGROUP
+5:SGROUP
+  6:SGROUP
+  6:EGROUP
+5:EGROUP
+6:SGROUP
+long-form:5 6:EGROUP
+7:SGROUP
+  1: 1
+long-form:5 7:EGROUP
+7:SGROUP
+  1: 1
+  1: 1
+long-form:5 7:EGROUP
+10:SGROUP

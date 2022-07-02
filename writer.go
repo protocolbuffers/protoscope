@@ -44,7 +44,10 @@ type WriterOptions struct {
 	// Treats every length-prefixed field as being a message, printing hex if
 	// an error is hit.
 	AllFieldsAreMessages bool
-	// Always prints the wire type of a field. Also disables !{} group syntax.
+	// Disables emitting !{}.
+	NoGroups bool
+	// Always prints the wire type of a field. Also disables !{} group syntax,
+	// like NoGroups
 	ExplicitWireTypes bool
 }
 
@@ -168,9 +171,11 @@ func (w *writer) resetGroup(g groupInfo) {
 	start := w.line(g.line).text
 	prev := start.String()
 
-	start.Reset()
-	start.WriteString(strings.TrimSuffix(prev, " !{"))
-	start.WriteString("SGROUP")
+	if !w.NoGroups {
+		start.Reset()
+		start.WriteString(strings.TrimSuffix(prev, " !{"))
+		start.WriteString("SGROUP")
+	}
 
 	// Unindent everything that was speculatively indented forwards.
 	w.line(g.line).indent--
@@ -211,7 +216,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		w.writef(" %d", int64(value))
 
 	case 3:
-		if w.ExplicitWireTypes {
+		if w.ExplicitWireTypes || w.NoGroups {
 			w.writef("SGROUP")
 		} else {
 			w.writef(" !{")
@@ -230,7 +235,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			lastGroup := w.groups.Pop()
 
 			if lastGroup.field == value>>3 {
-				if w.ExplicitWireTypes {
+				if w.ExplicitWireTypes || w.NoGroups {
 					w.line(-2).indent--
 					w.writef("EGROUP")
 				} else {
