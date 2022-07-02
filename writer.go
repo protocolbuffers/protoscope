@@ -49,6 +49,9 @@ type WriterOptions struct {
 	// Always prints the wire type of a field. Also disables !{} group syntax,
 	// like NoGroups
 	ExplicitWireTypes bool
+	// Never prints {}; instead, prints out an explicit length prefix (but still
+	// indents the contents of delimited things.
+	ExplicitLengthPrefixes bool
 }
 
 func Write(src []byte, opts WriterOptions) string {
@@ -81,7 +84,7 @@ func Write(src []byte, opts WriterOptions) string {
 			fmt.Fprint(&out, "  ")
 		}
 		indent += line.indent
-		fmt.Fprint(&out, line.text.String())
+		fmt.Fprint(&out, strings.TrimSpace(line.text.String()))
 		if comment := line.comment.String(); comment != "" {
 			fmt.Fprint(&out, "  # ", comment)
 		}
@@ -330,7 +333,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 	case 2:
-		if w.ExplicitWireTypes {
+		if w.ExplicitWireTypes || w.ExplicitLengthPrefixes {
 			w.writef("LEN")
 		}
 
@@ -350,7 +353,11 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		if extra > 0 {
 			w.writef(" long-form:%d", extra)
 		}
-		w.write(" {")
+		if w.ExplicitLengthPrefixes {
+			w.writef(" %d", int64(value))
+		} else {
+			w.write(" {")
+		}
 		w.line(-1).indent++
 
 		// First, assume this is a message.
@@ -386,19 +393,29 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				w.newLine()
 				w.dumpHexString(src2)
 			} else if len(w.lines) == startLine+1 {
-				w.mergeLines(1, "")
+				if w.ExplicitLengthPrefixes {
+					w.mergeLines(1, " ")
+				} else {
+					w.mergeLines(1, "")
+				}
 				oneLiner = true
 			}
 
 			w.line(-1).indent--
-			if !oneLiner {
-				w.newLine()
-			}
 
-			w.write("}")
+			if !w.ExplicitLengthPrefixes {
+				if !oneLiner {
+					w.newLine()
+				}
+				w.write("}")
+			}
 			return src, true
 		} else {
 			w.lines = w.lines[:startLine]
+		}
+
+		if w.ExplicitLengthPrefixes {
+			w.writef(" ")
 		}
 
 		// Otherwise, maybe it's a UTF-8 string.
@@ -450,10 +467,12 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 
 			w.write("\"")
 			w.line(-1).indent--
-			if runes > 80 {
-				w.newLine()
+			if !w.ExplicitLengthPrefixes {
+				if runes > 80 {
+					w.newLine()
+				}
+				w.write("}")
 			}
-			w.write("}")
 			return src, true
 		}
 
@@ -464,10 +483,12 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 		w.dumpHexString(delimited)
 		w.line(-1).indent--
-		if len(delimited) > 40 {
-			w.newLine()
+		if !w.ExplicitLengthPrefixes {
+			if len(delimited) > 40 {
+				w.newLine()
+			}
+			w.write("}")
 		}
-		w.write("}")
 	case 6, 7:
 		return nil, false
 	}
