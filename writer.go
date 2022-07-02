@@ -44,6 +44,8 @@ type WriterOptions struct {
 	// Treats every length-prefixed field as being a message, printing hex if
 	// an error is hit.
 	AllFieldsAreMessages bool
+	// Always prints the wire type of a field. Also disables !{} group syntax.
+	ExplicitWireTypes bool
 }
 
 func Write(src []byte, opts WriterOptions) string {
@@ -193,6 +195,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 
 	switch value & 0x7 {
 	case 0:
+		if w.ExplicitWireTypes {
+			w.writef("VARINT")
+		}
+
 		rest, value, extra, ok := decodeVarint(src)
 		if !ok {
 			return nil, false
@@ -205,7 +211,12 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		w.writef(" %d", int64(value))
 
 	case 3:
-		w.writef(" !{")
+		if w.ExplicitWireTypes {
+			w.writef("SGROUP")
+		} else {
+			w.writef(" !{")
+		}
+
 		w.line(-1).indent++
 		w.groups.Push(groupInfo{
 			line:  len(w.lines) - 1,
@@ -219,33 +230,38 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			lastGroup := w.groups.Pop()
 
 			if lastGroup.field == value>>3 {
-				w.line(-1).text.Reset()
-
-				groupLen := len(w.lines) - 2 - lastGroup.line
-				switch groupLen {
-				case 0:
-					// If this is an empty group, merge it into one line.
-					w.popLines(1)
-					if extra > 0 {
-						w.writef("long-form:%d", extra)
-					}
-					w.line(-1).indent--
-				case 1:
-					// If there is a single line, merge it into one line. This
-					// requires somewhat more care to avoid crushing comments.
-					w.mergeLines(2, "")
-					if extra > 0 {
-						w.writef(" long-form:%d", extra)
-					}
-					w.line(-1).indent--
-				default:
-					if extra > 0 {
-						w.writef("long-form:%d", extra)
-						w.newLine()
-					}
+				if w.ExplicitWireTypes {
 					w.line(-2).indent--
+					w.writef("EGROUP")
+				} else {
+					w.line(-1).text.Reset()
+
+					groupLen := len(w.lines) - 2 - lastGroup.line
+					switch groupLen {
+					case 0:
+						// If this is an empty group, merge it into one line.
+						w.popLines(1)
+						if extra > 0 {
+							w.writef("long-form:%d", extra)
+						}
+						w.line(-1).indent--
+					case 1:
+						// If there is a single line, merge it into one line. This
+						// requires somewhat more care to avoid crushing comments.
+						w.mergeLines(2, "")
+						if extra > 0 {
+							w.writef(" long-form:%d", extra)
+						}
+						w.line(-1).indent--
+					default:
+						if extra > 0 {
+							w.writef("long-form:%d", extra)
+							w.newLine()
+						}
+						w.line(-2).indent--
+					}
+					w.writef("}")
 				}
-				w.writef("}")
 			} else {
 				w.resetGroup(lastGroup)
 				w.writef("EGROUP")
@@ -253,6 +269,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 	case 1:
+		if w.ExplicitWireTypes {
+			w.writef("I64")
+		}
+
 		// Assume this is a float by default.
 		if len(src) < 8 {
 			return nil, false
@@ -276,6 +296,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			}
 		}
 	case 5:
+		if w.ExplicitWireTypes {
+			w.writef("I32")
+		}
+
 		// Assume this is a float by default.
 		if len(src) < 8 {
 			return nil, false
@@ -301,6 +325,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 	case 2:
+		if w.ExplicitWireTypes {
+			w.writef("LEN")
+		}
+
 		rest, value, extra, ok := decodeVarint(src)
 		if !ok {
 			return nil, false

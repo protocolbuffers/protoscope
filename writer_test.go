@@ -16,22 +16,25 @@ package protoscope
 
 import (
 	"embed"
+	"fmt"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-// To regenerate these tests, go to this directory and run
-// for f in *.pb; do ../protoscope $f > $f.golden; done
 //go:embed testdata/*
 var testdata embed.FS
 
 func TestGoldens(t *testing.T) {
 	type golden struct {
-		name string
-		pb   []byte
-		want string
+		name   string
+		pb     []byte
+		want   string
+		config string
+		opts   WriterOptions
 	}
 
 	var tests []golden
@@ -40,25 +43,57 @@ func TestGoldens(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range dir {
-		if !strings.HasSuffix(d.Name(), ".pb") {
+		if !strings.HasSuffix(d.Name(), ".golden") {
 			continue
 		}
 
-		pb, err := testdata.ReadFile("testdata/" + d.Name())
+		goldenBytes, err := testdata.ReadFile("testdata/" + d.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
-		goldenText, err := testdata.ReadFile("testdata/" + d.Name() + ".golden")
+		goldenText := string(goldenBytes)
+
+		// Pull off the first line, which must be a comment.
+		comment, rest, _ := strings.Cut(goldenText, "\n")
+		goldenText = rest
+
+		config := strings.Fields(strings.TrimPrefix(comment, "#"))
+
+		pb, err := testdata.ReadFile("testdata/" + config[0])
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		tests = append(tests, golden{d.Name(), pb, string(goldenText)})
+		opts := WriterOptions{}
+		v := reflect.ValueOf(&opts).Elem()
+		for _, opt := range config[1:] {
+			v.FieldByName(opt).SetBool(true)
+		}
+
+		tests = append(tests, golden{
+			name:   d.Name(),
+			pb:     pb,
+			want:   goldenText,
+			config: comment,
+			opts:   opts,
+		})
+	}
+
+	if _, ok := os.LookupEnv("REGEN_GOLDENS"); ok {
+		for _, tt := range tests {
+			got := Write(tt.pb, tt.opts)
+			f, _ := os.Create("testdata/" + tt.name)
+			defer f.Close()
+
+			fmt.Fprintln(f, tt.config)
+			fmt.Fprint(f, got)
+		}
+		return
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Write(tt.pb, WriterOptions{})
+			got := Write(tt.pb, tt.opts)
 			if d := cmp.Diff(tt.want, got); d != "" {
 				t.Fatal("output mismatch (-want, +got):", d)
 			}
