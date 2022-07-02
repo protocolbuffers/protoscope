@@ -29,10 +29,11 @@ var (
 	outPath  = flag.String("o", "", "output file to use (defaults to stdout)")
 	assemble = flag.Bool("s", false, "whether to treat the input as a Protoscope source file")
 
-	noQuotedStrings      = flag.Bool("no-quoted-strings", false, "assume no fields in the input proto are strings")
-	allFieldsAreMessages = flag.Bool("all-fields-are-messages", false, "try really hard to disassemble all fields as messages")
-	explicitWireTypes    = flag.Bool("explicit-wire-types", false, "include an explicit wire type for every field")
-	noGroups    = flag.Bool("no-groups", false, "do not try to disassemble groups")
+	noQuotedStrings        = flag.Bool("no-quoted-strings", false, "assume no fields in the input proto are strings")
+	allFieldsAreMessages   = flag.Bool("all-fields-are-messages", false, "try really hard to disassemble all fields as messages")
+	explicitWireTypes      = flag.Bool("explicit-wire-types", false, "include an explicit wire type for every field")
+	noGroups               = flag.Bool("no-groups", false, "do not try to disassemble groups")
+	explicitLengthPrefixes = flag.Bool("explicit-length-prefixes", false, "emit literal length prefixes instead of braces")
 )
 
 func main() {
@@ -81,10 +82,11 @@ func main() {
 		}
 	} else {
 		outBytes = []byte(protoscope.Write(inBytes, protoscope.WriterOptions{
-			NoQuotedStrings:      *noQuotedStrings,
-			AllFieldsAreMessages: *allFieldsAreMessages,
-			ExplicitWireTypes:    *explicitWireTypes,
-			NoGroups: *noGroups,
+			NoQuotedStrings:        *noQuotedStrings,
+			AllFieldsAreMessages:   *allFieldsAreMessages,
+			ExplicitWireTypes:      *explicitWireTypes,
+			NoGroups:               *noGroups,
+			ExplicitLengthPrefixes: *explicitLengthPrefixes,
 		}))
 	}
 
