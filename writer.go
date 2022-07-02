@@ -24,6 +24,18 @@ import (
 	"unicode/utf8"
 )
 
+type stack[T any] []T
+
+func (s *stack[T]) Push(x T) {
+	*s = append(*s, x)
+}
+
+func (s *stack[T]) Pop() T {
+	popped := (*s)[len(*s)-1]
+	*s = (*s)[:len(*s)-1]
+	return popped
+}
+
 // WriterOptions represents options that can be passed to control the writer's
 // decoding heuristics.
 type WriterOptions struct {
@@ -50,7 +62,6 @@ func Write(src []byte, opts WriterOptions) string {
 	// Order does not matter for fixing up unclosed groups
 	for _, g := range w.groups {
 		w.resetGroup(g)
-		w.indent--
 	}
 
 	if len(src) > 0 {
@@ -59,10 +70,12 @@ func Write(src []byte, opts WriterOptions) string {
 	}
 
 	var out strings.Builder
+	indent := 0
 	for _, line := range w.lines {
-		for i := 0; i < line.indent; i++ {
+		for i := 0; i < indent; i++ {
 			fmt.Fprint(&out, "  ")
 		}
+		indent += line.indent
 		fmt.Fprint(&out, line.text.String())
 		if comment := line.comment.String(); comment != "" {
 			fmt.Fprint(&out, "  # ", comment)
@@ -75,7 +88,10 @@ func Write(src []byte, opts WriterOptions) string {
 
 type line struct {
 	text, comment *strings.Builder
-	indent        int
+
+	// indent is how much the *next* line should be indented compared to this
+	// one.
+	indent int
 }
 
 type groupInfo struct {
@@ -85,29 +101,50 @@ type groupInfo struct {
 
 type writer struct {
 	opts   WriterOptions
-	indent int
 	lines  []line
-	groups []groupInfo
+	groups stack[groupInfo]
 }
 
 func (w *writer) write(args ...any) {
-	fmt.Fprint(w.lines[len(w.lines)-1].text, args...)
+	fmt.Fprint(w.line(-1).text, args...)
 }
 
 func (w *writer) writef(f string, args ...any) {
-	fmt.Fprintf(w.lines[len(w.lines)-1].text, f, args...)
+	fmt.Fprintf(w.line(-1).text, f, args...)
 }
 
 func (w *writer) commentf(f string, args ...any) {
-	fmt.Fprintf(w.lines[len(w.lines)-1].comment, f, args...)
+	fmt.Fprintf(w.line(-1).comment, f, args...)
 }
 
 func (w *writer) newLine() {
 	w.lines = append(w.lines, line{
 		text:    new(strings.Builder),
 		comment: new(strings.Builder),
-		indent:  w.indent,
 	})
+}
+
+func (w *writer) popLines(n int) {
+	w.lines = w.lines[:len(w.lines)-n]
+}
+
+func (w *writer) mergeLines(n int, delim string) {
+	onto := w.line(-n - 1)
+	for _, line := range w.lines[len(w.lines)-n:] {
+		onto.text.WriteString(delim)
+		onto.text.WriteString(line.text.String())
+		onto.comment.WriteString(line.comment.String())
+	}
+	w.popLines(n)
+}
+
+// line returns the nth line in the writer; negative values are relative to the
+// newest line (i.e., -1 returns the current line).
+func (w *writer) line(n int) *line {
+	if n < 0 {
+		return &w.lines[len(w.lines)+n]
+	}
+	return &w.lines[n]
 }
 
 func (w *writer) dumpHexString(src []byte) {
@@ -126,20 +163,15 @@ func (w *writer) dumpHexString(src []byte) {
 
 func (w *writer) resetGroup(g groupInfo) {
 	// Do some surgery on the line with the !{ to replace it with an SGROUP.
-	start := w.lines[g.line].text
-	startOld := start.String()
+	start := w.line(g.line).text
+	prev := start.String()
+
 	start.Reset()
-	start.WriteString(startOld[:len(startOld)-len(" !{")])
+	start.WriteString(strings.TrimSuffix(prev, " !{"))
 	start.WriteString("SGROUP")
+
 	// Unindent everything that was speculatively indented forwards.
-	// This is quadratic as hell, but only goes to hell when we have lots and lots
-	// of bad groups, and Protoscope isn't exactly intended for unfriendly inputs.
-	if g.line == len(w.lines)-1 {
-		return
-	}
-	for _, line := range w.lines[g.line+1 : len(w.lines)-1] {
-		line.indent--
-	}
+	w.line(g.line).indent--
 }
 
 func (w *writer) decodeField(src []byte) ([]byte, bool) {
@@ -171,49 +203,47 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			w.writef(" long-form:%d", extra)
 		}
 		w.writef(" %d", int64(value))
+
 	case 3:
 		w.writef(" !{")
-		w.indent++
-		w.groups = append(w.groups, groupInfo{line: len(w.lines) - 1, field: value >> 3})
+		w.line(-1).indent++
+		w.groups.Push(groupInfo{
+			line:  len(w.lines) - 1,
+			field: value >> 3,
+		})
+
 	case 4:
 		if len(w.groups) == 0 {
 			w.writef("EGROUP")
 		} else {
-			w.lines[len(w.lines)-1].indent--
-			w.indent--
-			lastGroup := w.groups[len(w.groups)-1]
-			w.groups = w.groups[:len(w.groups)-1]
+			lastGroup := w.groups.Pop()
 
 			if lastGroup.field == value>>3 {
-				w.lines[len(w.lines)-1].text.Reset()
+				w.line(-1).text.Reset()
 
 				groupLen := len(w.lines) - 2 - lastGroup.line
 				switch groupLen {
 				case 0:
 					// If this is an empty group, merge it into one line.
-					w.lines = w.lines[:len(w.lines)-1]
+					w.popLines(1)
 					if extra > 0 {
 						w.writef("long-form:%d", extra)
 					}
+					w.line(-1).indent--
 				case 1:
 					// If there is a single line, merge it into one line. This
 					// requires somewhat more care to avoid crushing comments.
-					groupStart := w.lines[lastGroup.line]
-					groupInner := w.lines[lastGroup.line+1]
-					groupStart.text.WriteString(groupInner.text.String())
-					groupInner.text.Reset()
-					groupStart.comment.WriteString(groupInner.comment.String())
-					groupInner.comment.Reset()
-					w.lines = w.lines[:len(w.lines)-2]
+					w.mergeLines(2, "")
 					if extra > 0 {
 						w.writef(" long-form:%d", extra)
 					}
+					w.line(-1).indent--
 				default:
 					if extra > 0 {
-						w.lines[len(w.lines)-1].indent++
 						w.writef("long-form:%d", extra)
 						w.newLine()
 					}
+					w.line(-2).indent--
 				}
 				w.writef("}")
 			} else {
@@ -288,8 +318,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			w.writef(" long-form:%d", extra)
 		}
 		w.write(" {")
-
-		w.indent++
+		w.line(-1).indent++
 
 		// First, assume this is a message.
 		startLine := len(w.lines)
@@ -301,7 +330,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			s, ok := w.decodeField(src2)
 			if !ok {
 				// Clip off an incompletely printed line.
-				w.lines = w.lines[:len(w.lines)-1]
+				w.popLines(1)
 				break
 			}
 			src2 = s
@@ -310,26 +339,29 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		// Order does not matter for fixing up unclosed groups
 		for _, g := range w.groups {
 			w.resetGroup(g)
-			w.indent--
 		}
 		w.groups = outerGroups
 
+		// If we consumed all the bytes, we're done and can wrap up. However, if we
+		// consumed *some* bytes, and the user requested unconditional message
+		// parsing, we'll continue regardless. We don't bother in the case where we
+		// failed at the start because the `...` case below will do a cleaner job.
 		if len(src2) == 0 || (w.opts.AllFieldsAreMessages && len(src2) < len(delimited)) {
-			oneLiner := len(w.lines) == startLine+1 && len(src2) == 0
-			if oneLiner {
-				line := w.lines[startLine]
-				w.lines = w.lines[:startLine]
-				w.writef("%s", line.text.String())
-				w.commentf("%s", line.comment.String())
-			} else if len(src2) > 0 {
+
+			oneLiner := false
+			if len(src2) > 0 {
 				w.newLine()
 				w.dumpHexString(src2)
+			} else if len(w.lines) == startLine+1 {
+				w.mergeLines(1, "")
+				oneLiner = true
 			}
 
-			w.indent--
+			w.line(-1).indent--
 			if !oneLiner {
 				w.newLine()
 			}
+
 			w.write("}")
 			return src, true
 		} else {
@@ -384,7 +416,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			}
 
 			w.write("\"")
-			w.indent--
+			w.line(-1).indent--
 			if runes > 80 {
 				w.newLine()
 			}
@@ -398,7 +430,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			w.newLine()
 		}
 		w.dumpHexString(delimited)
-		w.indent--
+		w.line(-1).indent--
 		if len(delimited) > 40 {
 			w.newLine()
 		}
