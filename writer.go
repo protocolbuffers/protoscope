@@ -47,7 +47,7 @@ type WriterOptions struct {
 }
 
 func Write(src []byte, opts WriterOptions) string {
-	w := writer{opts: opts}
+	w := writer{WriterOptions: opts}
 
 	for len(src) > 0 {
 		w.newLine()
@@ -100,7 +100,7 @@ type groupInfo struct {
 }
 
 type writer struct {
-	opts   WriterOptions
+	WriterOptions
 	lines  []line
 	groups stack[groupInfo]
 }
@@ -182,7 +182,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	src = rest
 
 	// 0 is never a valid field number, so this probably isn't a message.
-	if value>>3 == 0 && !w.opts.AllFieldsAreMessages {
+	if value>>3 == 0 && !w.AllFieldsAreMessages {
 		return nil, false
 	}
 
@@ -346,7 +346,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		// consumed *some* bytes, and the user requested unconditional message
 		// parsing, we'll continue regardless. We don't bother in the case where we
 		// failed at the start because the `...` case below will do a cleaner job.
-		if len(src2) == 0 || (w.opts.AllFieldsAreMessages && len(src2) < len(delimited)) {
+		if len(src2) == 0 || (w.AllFieldsAreMessages && len(src2) < len(delimited)) {
 
 			oneLiner := false
 			if len(src2) > 0 {
@@ -369,7 +369,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 		// Otherwise, maybe it's a UTF-8 string.
-		if !w.opts.NoQuotedStrings && utf8.Valid(delimited) {
+		if !w.NoQuotedStrings && utf8.Valid(delimited) {
 			runes := utf8.RuneCount(delimited)
 
 			s := string(delimited)
