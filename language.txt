@@ -35,9 +35,10 @@
 # Quoted strings.
 
 "Quoted strings are delimited by double quotes. Backslash denotes escape
-sequences. Legal escape sequences are: \\ \" \x00 \n. \x00 consumes two hex
-digits and emits a byte. Otherwise, any byte before the closing quote,
-including a newline, is emitted as-is."
+sequences. Legal escape sequences are: \\ \" \x00 \000 \n. \x00 consumes two
+hex digits and emits a byte. \000 consumes one to three octal digits and emits
+a byte. Otherwise, any byte before the closing quote, including a newline, is
+emitted as-is."
 
 # Tokens in the file are emitted one after another, so the following lines
 # produce the same output:

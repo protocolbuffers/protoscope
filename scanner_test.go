@@ -354,6 +354,64 @@ func TestScan(t *testing.T) {
 		},
 
 		{
+			name: "oct null",
+			text: "\"\\0\"",
+			want: []byte{
+				0x00,
+			},
+		},
+		{
+			name: "oct null 8",
+			text: "\"\\08\"",
+			want: []byte{
+				0x00, 0x38,
+			},
+		},
+		{
+			name: "oct double",
+			text: "\"\\13\"",
+			want: []byte{
+				0x0b,
+			},
+		},
+		{
+			name: "oct double X",
+			text: "\"\\13" + "X\"",
+			want: []byte{
+				0x0b, 0x58,
+			},
+		},
+		{
+			name: "oct Y double",
+			text: "\"Y" + "\\13\"",
+			want: []byte{
+				0x59, 0x0b,
+			},
+		},
+		{
+			name: "oct triple",
+			text: "\"\\007\"",
+			want: []byte{
+				0x07,
+			},
+		},
+		{
+			name: "oct WoW",
+			text: "\"\\127o\\127\"",
+			want: []byte{
+				0x57, 0x6f, 0x57,
+			},
+		},
+
+		{
+			name: "oct hex oct",
+			text: "\"\\127\\x40\\127\"",
+			want: []byte{
+				0x57, 0x40, 0x57,
+			},
+		},
+
+		{
 			name: "no fraction float",
 			text: "1.",
 		},
@@ -576,10 +634,11 @@ func TestScan(t *testing.T) {
 			name: "language.txt",
 			text: LanguageTxt,
 			want: concat(
-				"Quoted strings are delimited by double quotes. Backslash denotes ",
-				"escape\nsequences. Legal escape sequences are: \\ \" \x00 \n. \x00 ",
-				"consumes two hex\ndigits and emits a byte. Otherwise, any byte before ",
-				"the closing quote,\nincluding a newline, is emitted as-is.",
+				"Quoted strings are delimited by double quotes. Backslash denotes escape\n",
+				"sequences. Legal escape sequences are: \\ \" \x00 \000 \n. \x00 consumes two\n",
+				"hex digits and emits a byte. \000 consumes one to three octal digits and emits\n",
+				"a byte. Otherwise, any byte before the closing quote, including a newline, is\n",
+				"emitted as-is.",
 
 				"hello world",
 				"hello world",
