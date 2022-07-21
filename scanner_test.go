@@ -355,60 +355,99 @@ func TestScan(t *testing.T) {
 
 		{
 			name: "oct null",
-			text: "\"\\0\"",
+			text: `"\0"`,
 			want: []byte{
 				0x00,
 			},
 		},
 		{
 			name: "oct null 8",
-			text: "\"\\08\"",
+			text: `"\08"`,
 			want: []byte{
-				0x00, 0x38,
+				0x00, '8',
 			},
 		},
 		{
 			name: "oct double",
-			text: "\"\\13\"",
+			text: `"\13"`,
 			want: []byte{
 				0x0b,
 			},
 		},
 		{
 			name: "oct double X",
-			text: "\"\\13" + "X\"",
+			text: `"\13X"`,
 			want: []byte{
-				0x0b, 0x58,
+				0x0b, 'X',
 			},
 		},
 		{
 			name: "oct Y double",
-			text: "\"Y" + "\\13\"",
+			text: `"Y\13"`,
 			want: []byte{
-				0x59, 0x0b,
+				'Y', 0x0b,
 			},
 		},
 		{
 			name: "oct triple",
-			text: "\"\\007\"",
+			text: `"\007"`,
 			want: []byte{
 				0x07,
 			},
 		},
 		{
 			name: "oct WoW",
-			text: "\"\\127o\\127\"",
+			text: `"\127o\127"`,
 			want: []byte{
-				0x57, 0x6f, 0x57,
+				0x57, 'o', 0x57,
 			},
 		},
-
 		{
 			name: "oct hex oct",
-			text: "\"\\127\\x40\\127\"",
+			text: `"\127\x40\127"`,
 			want: []byte{
 				0x57, 0x40, 0x57,
 			},
+		},
+		{
+			name: "oct quad",
+			text: `"\1234"`,
+			want: []byte{
+				0x53, '4',
+			},
+		},
+		{
+			name: "oct 8",
+			text: `"\8"`,
+		},
+		{
+			name: "oct 008",
+			text: `"\008"`,
+			want: []byte{
+				0x00, '8',
+			},
+		},
+		{
+			name: "oct nullx3",
+			text: `"\0\0\0"`,
+			want: []byte{
+				0x00, 0x00, 0x00,
+			},
+		},
+		{
+			name: "oct max",
+			text: `"\377"`,
+			want: []byte{
+				0xff,
+			},
+		},
+		{
+			name: "oct overflow",
+			text: `"\400"`,
+		},
+		{
+			name: "oct overflow 2: electric boogaloo",
+			text: `"\777"`,
 		},
 
 		{
@@ -637,8 +676,8 @@ func TestScan(t *testing.T) {
 				"Quoted strings are delimited by double quotes. Backslash denotes escape\n",
 				"sequences. Legal escape sequences are: \\ \" \x00 \000 \n. \x00 consumes two\n",
 				"hex digits and emits a byte. \000 consumes one to three octal digits and emits\n",
-				"a byte. Otherwise, any byte before the closing quote, including a newline, is\n",
-				"emitted as-is.",
+				"a byte (rejecting values that do not fit in a single octet). Otherwise, any\n",
+				"byte before the closing quote, including a newline, is emitted as-is.",
 
 				"hello world",
 				"hello world",
