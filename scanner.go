@@ -201,6 +201,25 @@ func (s *Scanner) consumeUntil(b byte) (string, bool) {
 	return "", false
 }
 
+// parseOctalString parses the digits of an octal escape sequence, returning the
+// run it escapes.
+//
+// depth is the number of chars that we have parsed so far.
+// out is the current value of the integer that we are building.
+// We only call this function the first time when we know that we are looking at
+// at least one octal digit following a backslash '\'.
+func (s *Scanner) parseOctalString(depth, out int) (rune, error) {
+	if depth == 3 || s.isEOF(0) {
+		return rune(out), nil
+	}
+	c := s.Input[s.pos.Offset]
+	if c < '0' || c > '7' {
+		return rune(out), nil
+	}
+	s.advance(1)
+	return s.parseOctalString(depth + 1, (out << 3) + int(c) - '0')
+}
+
 // parseEscapeSequence parses a Protoscope escape sequence, returning the rune
 // it escapes.
 //
@@ -241,6 +260,9 @@ func (s *Scanner) parseEscapeSequence() (rune, error) {
 		}
 		return r, nil
 	default:
+		if '0' <= c && c <= '7' {
+			return s.parseOctalString(0, 0)
+		}
 		return 0, &ParseError{s.pos, fmt.Errorf("unknown escape sequence \\%c", c)}
 	}
 }
