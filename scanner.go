@@ -206,7 +206,7 @@ func (s *Scanner) consumeUntil(b byte) (string, bool) {
 // it escapes.
 //
 // Valid escapes are:
-// \n \" \\ \xNN
+// \n \" \\ \xNN \NNN
 //
 // This function assumes that the scanner's cursor is currently on a \ rune.
 func (s *Scanner) parseEscapeSequence() (byte, error) {
@@ -242,18 +242,20 @@ func (s *Scanner) parseEscapeSequence() (byte, error) {
 		}
 		return r, nil
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		i := 0
-		for i < 3 && !s.isEOF(0) {
-			c := s.Input[s.pos.Offset+i]
+		start := s.pos.Offset
+		for i := 0; i < 3 && !s.isEOF(0); i++ {
+			c := s.Input[s.pos.Offset]
 			if c < '0' || c > '7' {
 				break
 			}
-			i++
+			s.advance(1)
 		}
-		str := s.Input[s.pos.Offset : s.pos.Offset+i]
+		str := s.Input[start:s.pos.Offset]
 		r, err := strconv.ParseUint(str, 8, 8)
-		s.advance(i)
-		return byte(r), err
+		if err != nil {
+			return 0, &ParseError{s.pos, err}
+		}
+		return byte(r), nil
 	default:
 		return 0, &ParseError{s.pos, fmt.Errorf("unknown escape sequence \\%c", c)}
 	}
