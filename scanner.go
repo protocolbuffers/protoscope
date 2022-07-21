@@ -202,33 +202,14 @@ func (s *Scanner) consumeUntil(b byte) (string, bool) {
 	return "", false
 }
 
-// parseOctalString parses the digits of an octal escape sequence, returning the
-// run it escapes.
-//
-// depth is the number of chars that we have parsed so far.
-// out is the current value of the integer that we are building.
-// We only call this function the first time when we know that we are looking at
-// at least one octal digit following a backslash '\'.
-func (s *Scanner) parseOctalString(depth, out int) (rune, error) {
-	if depth == 3 || s.isEOF(0) {
-		return rune(out), nil
-	}
-	c := s.Input[s.pos.Offset]
-	if c < '0' || c > '7' {
-		return rune(out), nil
-	}
-	s.advance(1)
-	return s.parseOctalString(depth+1, (out<<3)+int(c)-'0')
-}
-
-// parseEscapeSequence parses a Protoscope escape sequence, returning the rune
+// parseEscapeSequence parses a Protoscope escape sequence, returning the byte
 // it escapes.
 //
 // Valid escapes are:
 // \n \" \\ \xNN
 //
 // This function assumes that the scanner's cursor is currently on a \ rune.
-func (s *Scanner) parseEscapeSequence() (rune, error) {
+func (s *Scanner) parseEscapeSequence() (byte, error) {
 	s.advance(1) // Skip the \. The caller is assumed to have validated it.
 	if s.isEOF(0) {
 		return 0, &ParseError{s.pos, errors.New("expected escape character")}
@@ -240,7 +221,7 @@ func (s *Scanner) parseEscapeSequence() (rune, error) {
 		return '\n', nil
 	case '"', '\\':
 		s.advance(1)
-		return rune(c), nil
+		return c, nil
 	case 'x':
 		s.advance(1)
 
@@ -254,16 +235,26 @@ func (s *Scanner) parseEscapeSequence() (rune, error) {
 			return 0, &ParseError{s.pos, err}
 		}
 
-		var r rune
+		var r byte
 		for _, b := range bytes {
 			r <<= 8
-			r |= rune(b)
+			r |= b
 		}
 		return r, nil
-	default:
-		if '0' <= c && c <= '7' {
-			return s.parseOctalString(0, 0)
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		i := 0
+		for i < 3 && !s.isEOF(0) {
+			c := s.Input[s.pos.Offset+i]
+			if c < '0' || c > '7' {
+				break
+			}
+			i++
 		}
+		str := s.Input[s.pos.Offset : s.pos.Offset+i]
+		r, err := strconv.ParseUint(str, 8, 8)
+		s.advance(i)
+		return byte(r), err
+	default:
 		return 0, &ParseError{s.pos, fmt.Errorf("unknown escape sequence \\%c", c)}
 	}
 }
@@ -284,16 +275,11 @@ func (s *Scanner) parseQuotedString() (token, error) {
 			s.advance(1)
 			return token{Kind: tokenBytes, Value: bytes, Pos: start}, nil
 		case '\\':
-			escapeStart := s.pos
 			r, err := s.parseEscapeSequence()
 			if err != nil {
 				return token{}, err
 			}
-			if r > 0xff {
-				// TODO(davidben): Alternatively, should these encode as UTF-8?
-				return token{}, &ParseError{escapeStart, errors.New("illegal escape for quoted string")}
-			}
-			bytes = append(bytes, byte(r))
+			bytes = append(bytes, r)
 		default:
 			s.advance(1)
 			bytes = append(bytes, c)
