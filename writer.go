@@ -309,7 +309,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		}
 
 		// Assume this is a float by default.
-		if len(src) < 8 {
+		if len(src) < 4 {
 			return nil, false
 		}
 		bits := binary.LittleEndian.Uint32(src)
