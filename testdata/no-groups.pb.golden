@@ -2,7 +2,7 @@
 1:SGROUP
   1: 101
   2: 202i32
-  3: {"eieio"}
+  3: {12: 7.2232605e28i32}  # 0x6f696569i32
 1:EGROUP
 2:SGROUP
 3:EGROUP
