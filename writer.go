@@ -22,6 +22,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/protocolbuffers/protoscope/internal/print"
 )
 
@@ -41,12 +44,22 @@ type WriterOptions struct {
 	// Never prints {}; instead, prints out an explicit length prefix (but still
 	// indents the contents of delimited things.
 	ExplicitLengthPrefixes bool
+
+	// Schema is a Descriptor that describes the message type we're expecting to
+	// disassemble, if any.
+	Schema protoreflect.MessageDescriptor
+	// Prints field names, using Schema as the source of names.
+	PrintFieldNames bool
 }
 
 func Write(src []byte, opts WriterOptions) string {
 	w := writer{WriterOptions: opts}
 	w.Indent = 2
 	w.MaxFolds = 3
+
+	if opts.Schema != nil {
+		w.descs.Push(opts.Schema)
+	}
 
 	for len(src) > 0 {
 		w.NewLine()
@@ -68,18 +81,25 @@ func Write(src []byte, opts WriterOptions) string {
 }
 
 type line struct {
-	text, comment *strings.Builder
+	text     *strings.Builder
+	comments []string
 
 	// indent is how much the *next* line should be indented compared to this
 	// one.
 	indent int
 }
 
+type group struct {
+	number  uint64
+	hasDesc bool
+}
+
 type writer struct {
 	WriterOptions
 	print.Printer
 
-	groups print.Stack[uint64]
+	groups print.Stack[group]
+	descs  print.Stack[protoreflect.MessageDescriptor]
 }
 
 func (w *writer) dumpHexString(src []byte) {
@@ -126,7 +146,17 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	if extra > 0 {
 		w.Writef("long-form:%d ", extra)
 	}
-	w.Writef("%d:", value>>3)
+	number := value >> 3
+	w.Writef("%d:", number)
+
+	var field protoreflect.FieldDescriptor
+	if d := w.descs.Peek(); d != nil && *d != nil {
+		field = (*d).Fields().ByNumber(protowire.Number(number))
+	}
+
+	if w.PrintFieldNames && field != nil {
+		w.Remark(field.Name())
+	}
 
 	switch value & 0x7 {
 	case 0:
@@ -146,6 +176,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		w.Writef(" %d", int64(value))
 
 	case 3:
+		if field != nil {
+			w.descs.Push(field.Message())
+		}
+
 		if w.ExplicitWireTypes || w.NoGroups {
 			w.Writef("SGROUP")
 			w.StartBlock(print.BlockInfo{
@@ -161,15 +195,18 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				UnindentAt:     1,
 			})
 		}
-
-		w.groups.Push(value >> 3)
+		w.groups.Push(group{number, field != nil})
 
 	case 4:
 		if len(w.groups) == 0 {
 			w.Writef("EGROUP")
 		} else {
 			lastGroup := w.groups.Pop()
-			if lastGroup == value>>3 {
+			if lastGroup.hasDesc {
+				_ = w.descs.Pop()
+			}
+
+			if lastGroup.number == number {
 				if w.ExplicitWireTypes || w.NoGroups {
 					w.Writef("EGROUP")
 				} else {
@@ -237,7 +274,6 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			if s := ftoa(bits); s != "" {
 				w.Writef(" %si32", s)
 				w.Remarkf("%#xi32", int32(bits))
-
 			} else {
 				w.Writef(" %di32", int32(bits))
 			}
@@ -285,6 +321,9 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src2 := delimited
 		outerGroups := w.groups
 		w.groups = nil
+		if field != nil {
+			w.descs.Push(field.Message())
+		}
 		for len(src2) > 0 {
 			w.NewLine()
 			s, ok := w.decodeField(src2)
@@ -294,6 +333,9 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				break
 			}
 			src2 = s
+		}
+		if field != nil {
+			w.descs.Pop()
 		}
 
 		// Order does not matter for fixing up unclosed groups

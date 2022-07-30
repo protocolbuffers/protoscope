@@ -52,6 +52,9 @@ func (s *Stack[T]) PopN(n int) []T {
 // Peek returns a pointer to the top of the stack, or nil if the stack is
 // empty.
 func (s *Stack[T]) Peek() *T {
+	if len(*s) == 0 {
+		return nil
+	}
 	return &s.PeekN(1)[0]
 }
 
