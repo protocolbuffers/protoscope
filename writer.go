@@ -50,6 +50,8 @@ type WriterOptions struct {
 	Schema protoreflect.MessageDescriptor
 	// Prints field names, using Schema as the source of names.
 	PrintFieldNames bool
+	// Prints enum value names, using Schema as the source of names.
+	PrintEnumNames bool
 }
 
 func Write(src []byte, opts WriterOptions) string {
@@ -131,6 +133,137 @@ func (w *writer) resetGroup() {
 	}
 }
 
+func (w *writer) decodeVarint(src []byte, fd protoreflect.FieldDescriptor) ([]byte, bool) {
+	rest, value, extra, ok := decodeVarint(src)
+	if !ok {
+		return nil, false
+	}
+	src = rest
+
+	if extra > 0 {
+		w.Writef("long-form:%d", extra)
+	}
+
+	ftype := protoreflect.Int64Kind
+	if fd != nil {
+		ftype = fd.Kind()
+	}
+
+	// Pick a deserialization based on the type. If the type doesn't really
+	// make sense (like a double), we fall back on int64. We ignore 32-bit-ness:
+	// everything is 64 bit here.
+	switch ftype {
+	case protoreflect.Uint32Kind, protoreflect.Uint64Kind,
+		protoreflect.Fixed32Kind, protoreflect.Fixed64Kind:
+		w.Writef("%d", value)
+	case protoreflect.Sint32Kind, protoreflect.Sint64Kind:
+		// Undo ZigZag encoding, then print as signed.
+		value = (value >> 1) ^ -(value & 1)
+		w.Writef("%dz", int64(value))
+	case protoreflect.EnumKind:
+		if w.PrintEnumNames && value < math.MaxInt32 {
+			ed := fd.Enum().Values()
+			edv := ed.ByNumber(protoreflect.EnumNumber(value))
+			if edv != nil {
+				w.Remark(string(edv.Name()))
+			}
+		}
+		fallthrough
+	default:
+		w.Writef("%d", int64(value))
+	}
+
+	return src, true
+}
+
+// decodeFixed prints out a single fixed-length value.
+//
+// This monster of a generic function exists to reduce keeping the two copies of
+// 32-bit and 64-bit logic in sync.
+func printFixed[
+	U uint32 | uint64,
+	I int32 | int64,
+	F float32 | float64,
+](
+	w *writer,
+	value U,
+	suffix string,
+	itof func(U) F,
+	src []byte,
+	fd protoreflect.FieldDescriptor,
+) ([]byte, bool) {
+
+	var ftype protoreflect.Kind
+	if fd != nil {
+		ftype = fd.Kind()
+	}
+
+	switch ftype {
+	case protoreflect.Uint32Kind, protoreflect.Uint64Kind,
+		protoreflect.Fixed32Kind, protoreflect.Fixed64Kind:
+		w.Writef("%di%s", value, suffix)
+	case protoreflect.EnumKind:
+		if w.PrintEnumNames && value < math.MaxInt32 {
+			ed := fd.Enum().Values()
+			edv := ed.ByNumber(protoreflect.EnumNumber(value))
+			if edv != nil {
+				w.Remark(string(edv.Name()))
+			}
+		}
+		fallthrough
+	case protoreflect.Int32Kind, protoreflect.Int64Kind,
+		protoreflect.Sint32Kind, protoreflect.Sint64Kind,
+		protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind,
+		protoreflect.BoolKind:
+		w.Writef("%di%s", I(value), suffix)
+	default:
+		// Assume this is a float by default.
+		fvalue := float64(itof(value))
+		if math.IsInf(fvalue, 1) {
+			w.Writef("inf%s", suffix)
+		} else if math.IsInf(fvalue, -1) {
+			w.Writef("-inf%s", suffix)
+		} else if math.IsNaN(fvalue) {
+			// NaNs always print as bits, because there are many NaNs.
+			w.Writef("0x%xi%s", value, suffix)
+		} else {
+			if s := ftoa(value, ftype == protoreflect.DoubleKind || ftype == protoreflect.FloatKind); s != "" {
+				// For floats, i64 is actually implied.
+				if suffix == "64" {
+					w.Write(s)
+				} else {
+					w.Writef("%si%s", s, suffix)
+				}
+				w.Remarkf("%#xi%s", U(value), suffix)
+			} else {
+				w.Writef("%di%s", I(value), suffix)
+			}
+		}
+	}
+
+	return src, true
+}
+
+func (w *writer) decodeI32(src []byte, fd protoreflect.FieldDescriptor) ([]byte, bool) {
+	if len(src) < 4 {
+		return nil, false
+	}
+	value := binary.LittleEndian.Uint32(src)
+	src = src[4:]
+
+	return printFixed[uint32, int32, float32](w, value, "32", math.Float32frombits, src, fd)
+}
+
+func (w *writer) decodeI64(src []byte, fd protoreflect.FieldDescriptor) ([]byte, bool) {
+	if len(src) < 8 {
+		return nil, false
+	}
+	value := binary.LittleEndian.Uint64(src)
+	src = src[8:]
+
+	return printFixed[uint64, int64, float64](w, value, "64", math.Float64frombits, src, fd)
+}
+
 func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	rest, value, extra, ok := decodeVarint(src)
 	if !ok {
@@ -149,57 +282,62 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	number := value >> 3
 	w.Writef("%d:", number)
 
-	var field protoreflect.FieldDescriptor
+	var fd protoreflect.FieldDescriptor
 	if d := w.descs.Peek(); d != nil && *d != nil {
-		field = (*d).Fields().ByNumber(protowire.Number(number))
+		fd = (*d).Fields().ByNumber(protowire.Number(number))
 	}
 
-	if w.PrintFieldNames && field != nil {
-		w.Remark(field.Name())
+	if w.PrintFieldNames && fd != nil {
+		w.Remark(fd.Name())
 	}
 
 	switch value & 0x7 {
 	case 0:
 		if w.ExplicitWireTypes {
-			w.Writef("VARINT")
+			w.Write("VARINT")
 		}
+		w.Write(" ")
+		return w.decodeVarint(src, fd)
 
-		rest, value, extra, ok := decodeVarint(src)
-		if !ok {
-			return nil, false
+	case 1:
+		if w.ExplicitWireTypes {
+			w.Write("I64")
 		}
-		src = rest
+		w.Write(" ")
+		return w.decodeI64(src, fd)
 
-		if extra > 0 {
-			w.Writef(" long-form:%d", extra)
+	case 5:
+		if w.ExplicitWireTypes {
+			w.Write("I32")
 		}
-		w.Writef(" %d", int64(value))
+		w.Write(" ")
+		return w.decodeI32(src, fd)
 
 	case 3:
-		if field != nil {
-			w.descs.Push(field.Message())
+		if fd != nil {
+			w.descs.Push(fd.Message())
 		}
 
 		if w.ExplicitWireTypes || w.NoGroups {
-			w.Writef("SGROUP")
+			w.Write("SGROUP")
 			w.StartBlock(print.BlockInfo{
 				HasDelimiters:  false,
 				HeightToFoldAt: 2,
 				UnindentAt:     1,
 			})
 		} else {
-			w.Writef(" !{")
+			w.Write(" !{")
 			w.StartBlock(print.BlockInfo{
 				HasDelimiters:  true,
 				HeightToFoldAt: 3,
 				UnindentAt:     1,
 			})
 		}
-		w.groups.Push(group{number, field != nil})
+		w.groups.Push(group{number, fd != nil})
 
 	case 4:
 		if len(w.groups) == 0 {
-			w.Writef("EGROUP")
+			w.Write("EGROUP")
 		} else {
 			lastGroup := w.groups.Pop()
 			if lastGroup.hasDesc {
@@ -208,81 +346,32 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 
 			if lastGroup.number == number {
 				if w.ExplicitWireTypes || w.NoGroups {
-					w.Writef("EGROUP")
+					w.Write("EGROUP")
 				} else {
 					w.Current().Reset()
+					/*if w.PrintFieldNames && fd != nil {
+						// Drop the field comment for this line.
+						w.line(-1).comments = w.line(-1).comments[1:]
+					}*/
+
 					if extra > 0 {
 						w.Writef("long-form:%d", extra)
 						w.NewLine()
 					}
-					w.Writef("}")
+					w.Write("}")
 				}
 				w.EndBlock()
 			} else {
 				w.resetGroup()
-				w.Writef("EGROUP")
-			}
-		}
-
-	case 1:
-		if w.ExplicitWireTypes {
-			w.Writef("I64")
-		}
-
-		// Assume this is a float by default.
-		if len(src) < 8 {
-			return nil, false
-		}
-		bits := binary.LittleEndian.Uint64(src)
-		src = src[8:]
-		value := math.Float64frombits(bits)
-
-		if math.IsInf(value, 1) {
-			w.Write(" inf64")
-		} else if math.IsInf(value, -1) {
-			w.Write(" -inf64")
-		} else if math.IsNaN(value) {
-			w.Writef(" 0x%xi64", bits)
-		} else {
-			if s := ftoa(bits); s != "" {
-				w.Writef(" %s", s)
-				w.Remarkf("%#xi64", int64(bits))
-			} else {
-				w.Writef(" %di64", int64(bits))
-			}
-		}
-	case 5:
-		if w.ExplicitWireTypes {
-			w.Writef("I32")
-		}
-
-		// Assume this is a float by default.
-		if len(src) < 4 {
-			return nil, false
-		}
-		bits := binary.LittleEndian.Uint32(src)
-		src = src[4:]
-		value := float64(math.Float32frombits(bits))
-
-		if math.IsInf(value, 1) {
-			w.Write(" inf32")
-		} else if math.IsInf(value, -1) {
-			w.Write(" -inf32")
-		} else if math.IsNaN(value) {
-			w.Writef(" 0x%xi32", bits)
-		} else {
-			if s := ftoa(bits); s != "" {
-				w.Writef(" %si32", s)
-				w.Remarkf("%#xi32", int32(bits))
-			} else {
-				w.Writef(" %di32", int32(bits))
+				w.Write("EGROUP")
 			}
 		}
 
 	case 2:
 		if w.ExplicitWireTypes || w.ExplicitLengthPrefixes {
-			w.Writef("LEN")
+			w.Write("LEN")
 		}
+		w.Write(" ")
 
 		rest, value, extra, ok := decodeVarint(src)
 		if !ok {
@@ -298,17 +387,17 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src = src[int(value):]
 
 		if extra > 0 {
-			w.Writef(" long-form:%d", extra)
+			w.Writef("long-form:%d ", extra)
 		}
 		if w.ExplicitLengthPrefixes {
-			w.Writef(" %d", int64(value))
+			w.Write(int64(value))
 			w.StartBlock(print.BlockInfo{
 				HasDelimiters:  false,
 				HeightToFoldAt: 2,
 				UnindentAt:     0,
 			})
 		} else {
-			w.Write(" {")
+			w.Write("{")
 			w.StartBlock(print.BlockInfo{
 				HasDelimiters:  true,
 				HeightToFoldAt: 3,
@@ -321,8 +410,8 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src2 := delimited
 		outerGroups := w.groups
 		w.groups = nil
-		if field != nil {
-			w.descs.Push(field.Message())
+		if fd != nil {
+			w.descs.Push(fd.Message())
 		}
 		for len(src2) > 0 {
 			w.NewLine()
@@ -334,7 +423,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			}
 			src2 = s
 		}
-		if field != nil {
+		if fd != nil {
 			w.descs.Pop()
 		}
 
@@ -417,7 +506,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	return src, true
 }
 
-func ftoa[I uint32 | uint64](bits I) string {
+func ftoa[I uint32 | uint64](bits I, floatForSure bool) string {
 	var mantLen, expLen, bitLen int
 	var value float64
 	switch b := any(bits).(type) {
@@ -446,7 +535,7 @@ func ftoa[I uint32 | uint64](bits I) string {
 	}
 	bigExp := int64(1)<<(expLen-1) - 1
 
-	if absExp >= bigExp {
+	if absExp >= bigExp && !floatForSure {
 		// Very large or very small exponents indicate this probably isn't actually
 		// a float.
 		return ""
