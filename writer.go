@@ -141,7 +141,7 @@ func (w *writer) decodeVarint(src []byte, fd protoreflect.FieldDescriptor) ([]by
 	src = rest
 
 	if extra > 0 {
-		w.Writef("long-form:%d", extra)
+		w.Writef("long-form:%d ", extra)
 	}
 
 	ftype := protoreflect.Int64Kind
@@ -153,9 +153,19 @@ func (w *writer) decodeVarint(src []byte, fd protoreflect.FieldDescriptor) ([]by
 	// make sense (like a double), we fall back on int64. We ignore 32-bit-ness:
 	// everything is 64 bit here.
 	switch ftype {
+	case protoreflect.BoolKind:
+		switch value {
+		case 0:
+			w.Write("false")
+			return src, true
+		case 1:
+			w.Write("true")
+			return src, true
+		}
+		fallthrough
 	case protoreflect.Uint32Kind, protoreflect.Uint64Kind,
 		protoreflect.Fixed32Kind, protoreflect.Fixed64Kind:
-		w.Writef("%d", value)
+		w.Write(value)
 	case protoreflect.Sint32Kind, protoreflect.Sint64Kind:
 		// Undo ZigZag encoding, then print as signed.
 		value = (value >> 1) ^ -(value & 1)
@@ -170,7 +180,7 @@ func (w *writer) decodeVarint(src []byte, fd protoreflect.FieldDescriptor) ([]by
 		}
 		fallthrough
 	default:
-		w.Writef("%d", int64(value))
+		w.Write(int64(value))
 	}
 
 	return src, true
@@ -405,46 +415,92 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			})
 		}
 
-		// First, assume this is a message.
-		startLine := w.Mark()
-		src2 := delimited
-		outerGroups := w.groups
-		w.groups = nil
+		ftype := protoreflect.MessageKind
 		if fd != nil {
-			w.descs.Push(fd.Message())
+			ftype = fd.Kind()
 		}
-		for len(src2) > 0 {
-			w.NewLine()
-			s, ok := w.decodeField(src2)
-			if !ok {
-				// Clip off an incompletely printed line.
-				w.DiscardLine()
-				break
+
+		decodePacked := func(decode func([]byte, protoreflect.FieldDescriptor) ([]byte, bool)) {
+			count := 0
+			for ; ; count++ {
+				w.NewLine()
+				s, ok := decode(delimited, fd)
+				if !ok {
+					w.DiscardLine()
+					break
+				}
+				delimited = s
 			}
-			src2 = s
-		}
-		if fd != nil {
-			w.descs.Pop()
+
+			w.FoldIntoColumns(8, count)
 		}
 
-		// Order does not matter for fixing up unclosed groups
-		for _ = range w.groups {
-			w.resetGroup()
-		}
-		w.groups = outerGroups
+		switch ftype {
+		case protoreflect.BoolKind, protoreflect.EnumKind,
+			protoreflect.Int32Kind, protoreflect.Int64Kind,
+			protoreflect.Uint32Kind, protoreflect.Uint64Kind,
+			protoreflect.Sint32Kind, protoreflect.Sint64Kind:
+			decodePacked(w.decodeVarint)
+			goto decodeBytes
 
-		// If we consumed all the bytes, we're done and can wrap up. However, if we
-		// consumed *some* bytes, and the user requested unconditional message
-		// parsing, we'll continue regardless. We don't bother in the case where we
-		// failed at the start because the `...` case below will do a cleaner job.
-		if len(src2) == 0 || (w.AllFieldsAreMessages && len(src2) < len(delimited)) {
-			delimited = src2
-			goto justBytes
-		} else {
-			w.Reset(startLine)
+		case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind,
+			protoreflect.FloatKind:
+			decodePacked(w.decodeI32)
+			goto decodeBytes
+
+		case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind,
+			protoreflect.DoubleKind:
+			decodePacked(w.decodeI64)
+			goto decodeBytes
+
+		case protoreflect.StringKind, protoreflect.BytesKind:
+			goto decodeUtf8
+		}
+
+		// This is in a block so that the gotos can jump over the declarations
+		// safely.
+		{
+			startLine := w.Mark()
+			src2 := delimited
+			outerGroups := w.groups
+			w.groups = nil
+			if fd != nil {
+				w.descs.Push(fd.Message())
+			}
+			for len(src2) > 0 {
+				w.NewLine()
+				s, ok := w.decodeField(src2)
+				if !ok {
+					// Clip off an incompletely printed line.
+					w.DiscardLine()
+					break
+				}
+				src2 = s
+			}
+			if fd != nil {
+				w.descs.Pop()
+			}
+
+			// Order does not matter for fixing up unclosed groups
+			for range w.groups {
+				w.resetGroup()
+			}
+			w.groups = outerGroups
+
+			// If we consumed all the bytes, we're done and can wrap up. However, if we
+			// consumed *some* bytes, and the user requested unconditional message
+			// parsing, we'll continue regardless. We don't bother in the case where we
+			// failed at the start because the `...` case below will do a cleaner job.
+			if len(src2) == 0 || (w.AllFieldsAreMessages && len(src2) < len(delimited)) {
+				delimited = src2
+				goto decodeBytes
+			} else {
+				w.Reset(startLine)
+			}
 		}
 
 		// Otherwise, maybe it's a UTF-8 string.
+	decodeUtf8:
 		if !w.NoQuotedStrings && utf8.Valid(delimited) {
 			runes := utf8.RuneCount(delimited)
 
@@ -456,7 +512,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				}
 			}
 			if float64(unprintable)/float64(runes) > 0.3 {
-				goto justBytes
+				goto decodeBytes
 			}
 
 			w.NewLine()
@@ -489,11 +545,11 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			}
 			w.Write("\"")
 			delimited = nil
-			goto justBytes
+			goto decodeBytes
 		}
 
 		// Who knows what it is? Bytes or something.
-	justBytes:
+	decodeBytes:
 		w.dumpHexString(delimited)
 		if !w.ExplicitLengthPrefixes {
 			w.NewLine()

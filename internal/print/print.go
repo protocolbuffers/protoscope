@@ -307,3 +307,52 @@ func (p *Printer) EndBlock() *Line {
 	p.lines = p.lines[:bi.start+1]
 	return start
 }
+
+// Folds the last count lines into lines with `cols` columns each.
+func (p *Printer) FoldIntoColumns(cols, count int) {
+	toFold := p.lines.PopN(count)
+	widths := make([]int, cols)
+
+	for len(toFold) > 0 {
+		for i := range widths {
+			widths[i] = 0
+		}
+
+		end := len(toFold)
+		for i, line := range toFold {
+			if len(line.remarks) != 0 {
+				end = i
+				break
+			}
+
+			len := utf8.RuneCount(line.Bytes())
+			w := &widths[i%cols]
+			if len > *w {
+				*w = len
+			}
+		}
+		if end == 0 {
+			end = 1
+		}
+
+		for i, line := range toFold[:end] {
+			if i%cols == 0 {
+				p.NewLine()
+			} else {
+				p.Write(" ")
+			}
+
+			needed := widths[i%cols] - utf8.RuneCount(line.Bytes())
+			for i := 0; i < needed; i++ {
+				p.Write(" ")
+			}
+			p.Current().Write(line.Bytes())
+			if len(line.remarks) != 0 {
+				// This will execute at most once per loop.
+				p.Current().remarks = line.remarks
+			}
+		}
+
+		toFold = toFold[end:]
+	}
+}
