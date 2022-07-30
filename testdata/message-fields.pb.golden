@@ -11,7 +11,7 @@
 10: 110i64    # optional_sfixed64
 11: 111.0i32  # optional_float, 0x42de0000i32
 12: 112.0     # optional_double, 0x405c000000000000i64
-13: 1         # optional_bool
+13: true      # optional_bool
 14: {"115"}   # optional_string
 15: {"116"}   # optional_bytes
 16: !{        # optionalgroup
@@ -58,8 +58,8 @@
 41: 311.0i32  # repeated_float, 0x439b8000i32
 42: 212.0     # repeated_double, 0x406a800000000000i64
 42: 312.0     # repeated_double, 0x4073800000000000i64
-43: 1         # repeated_bool
-43: 0         # repeated_bool
+43: true      # repeated_bool
+43: false     # repeated_bool
 44: {"215"}   # repeated_string
 44: {"315"}   # repeated_string
 45: {"216"}   # repeated_bytes
@@ -112,7 +112,7 @@
 70: 410i64    # default_sfixed64
 71: 411.0i32  # default_float, 0x43cd8000i32
 72: 412.0     # default_double, 0x4079c00000000000i64
-73: 0         # default_bool
+73: false     # default_bool
 74: {"415"}   # default_string
 75: {"416"}   # default_bytes
 81: 1         # default_nested_enum
