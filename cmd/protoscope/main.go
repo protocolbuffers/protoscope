@@ -48,6 +48,7 @@ var (
 	messageType   = flag.String("message-type", "", "full name of a type in the FileDescriptorSet given by -descriptor-set;\n"+
 		"the input file will be heuristically assumed to be an encoded proto of this type")
 	printFieldNames = flag.Bool("print-field-names", false, "prints out field names, if using -message-type")
+	printEnumNames  = flag.Bool("print-enum-names", false, "prints out enum value names, if using -message-type")
 )
 
 func main() {
@@ -164,6 +165,7 @@ func Main() error {
 
 			Schema:          schema,
 			PrintFieldNames: *printFieldNames,
+			PrintEnumNames:  *printEnumNames,
 		}))
 	}
 
