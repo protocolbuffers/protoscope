@@ -15,10 +15,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 
 	_ "embed"
 
@@ -28,6 +31,7 @@ import (
 var (
 	outPath  = flag.String("o", "", "output file to use (defaults to stdout)")
 	assemble = flag.Bool("s", false, "whether to treat the input as a Protoscope source file")
+	spec     = flag.Bool("spec", false, "opens the Protoscope spec in $PAGER")
 
 	noQuotedStrings        = flag.Bool("no-quoted-strings", false, "assume no fields in the input proto are strings")
 	allFieldsAreMessages   = flag.Bool("all-fields-are-messages", false, "try really hard to disassemble all fields as messages")
@@ -37,11 +41,18 @@ var (
 )
 
 func main() {
+	if err := Main(); err != nil {
+		fmt.Fprintln(os.Stderr, "protoscope:", err)
+		os.Exit(1)
+	}
+}
+
+func Main() error {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION...] [INPUT]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Assemble a Protoscope file to binary, or inspect binary data as Protoscope text.\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [-s] [OPTION...] [INPUT]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Assemble a Protoscope file to binary, or inspect binary data as Protoscope text.\n")
+		fmt.Fprintf(os.Stderr, "Run with -spec to learn more about the Protoscope language.\n\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\n%s\n", protoscope.LanguageTxt)
 	}
 
 	flag.Parse()
@@ -51,6 +62,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *spec {
+		pager := os.Getenv("PAGER")
+		if pager == "" {
+			return fmt.Errorf("%s", protoscope.LanguageTxt)
+			return nil
+		}
+
+		cmd := exec.Command(pager)
+		cmd.Stdout = os.Stdout
+		cmd.Stdin = strings.NewReader(protoscope.LanguageTxt)
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	inPath := ""
 	inFile := os.Stdin
 	if flag.NArg() == 1 {
@@ -58,16 +85,14 @@ func main() {
 		var err error
 		inFile, err = os.Open(inPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening %s: %s\n", inPath, err)
-			os.Exit(1)
+			return err
 		}
 		defer inFile.Close()
 	}
 
 	inBytes, err := io.ReadAll(inFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading input: %s\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	var outBytes []byte
@@ -77,7 +102,7 @@ func main() {
 
 		outBytes, err = scanner.Exec()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Syntax error: %s\n", err)
+			return fmt.Errorf("syntax error: %s\n", err)
 			os.Exit(1)
 		}
 	} else {
@@ -95,14 +120,11 @@ func main() {
 		var err error
 		outFile, err = os.Create(*outPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening %s: %s\n", *outPath, err)
-			os.Exit(1)
+			return err
 		}
 		defer outFile.Close()
 	}
 
-	if _, err = outFile.Write(outBytes); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing output: %s\n", err)
-		os.Exit(1)
-	}
+	_, err = outFile.Write(outBytes)
+	return err
 }
