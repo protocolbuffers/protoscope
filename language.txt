@@ -278,3 +278,42 @@ inf32
 #    d. If it doesn't, re-encode the wire type 3 tag as N:SGROUP, and encode the
 #       wire type 4 tag as above. If a type 2 message ends before the group is
 #       closed, or the input reaches EOF, this step also applies.
+#
+# However, Protoscope offers the option of providing a descriptor to aid
+# disassembly. In this case the heuristic becomes much more intelligent.
+# Steps 1 and 2 remain the same, but from 3 onwards:
+#
+# 3. If the wire type is 0, parse a varint and encode it as:
+#    
+#    a. true/false if the field is bool-typed and 0- or 1-valued.
+#
+#    b. A sint64 (a 42z literal) if the field is sint32/sint64-typed.
+#
+#    c. A uint64 if any of the unsigned integer types.
+#
+#    d. An int64 if none of the above apply.
+#
+# 4. If the wire type is 1 or 5, parse eight or four bytes and encoded as:
+#
+#    a. A fixed64/fixed32 (resp) if the field is any of the unsigned integer
+#       types.
+#
+#    b. A sfixed64/sfixed32 (resp) if the field is any of the other integer
+#       types.
+#
+#    c. The same way floats are encoded in the schema-less algorithm above, step
+#       4.a-4.c, but printing subnormals as floats, too.
+#
+# 5. If the wire type is 2:
+#    
+#    a. If the field type is a scalar, print as a packed field (numeric literals
+#       inside of braces) per the steps 3 and 4 above.
+#
+#    b. If the field is a message or group, use the algorithm described in the
+#       schema-less scheme (step 5).
+#
+#    c. If the field is bytes or string, print as quoted strings or hex
+#       literals as suits the disassembler's fancy.
+#
+# 6. If the wire type is 3, proceed per the instructions for a group given for
+#    the schema-less algorithm.
