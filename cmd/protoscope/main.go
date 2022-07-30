@@ -25,6 +25,11 @@ import (
 
 	_ "embed"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+
 	"github.com/protocolbuffers/protoscope"
 )
 
@@ -38,6 +43,11 @@ var (
 	explicitWireTypes      = flag.Bool("explicit-wire-types", false, "include an explicit wire type for every field")
 	noGroups               = flag.Bool("no-groups", false, "do not try to disassemble groups")
 	explicitLengthPrefixes = flag.Bool("explicit-length-prefixes", false, "emit literal length prefixes instead of braces")
+
+	descriptorSet = flag.String("descriptor-set", "", "path to a file containing an encoded FileDescriptorSet, for aiding disassembly")
+	messageType   = flag.String("message-type", "", "full name of a type in the FileDescriptorSet given by -descriptor-set;\n"+
+		"the input file will be heuristically assumed to be an encoded proto of this type")
+	printFieldNames = flag.Bool("print-field-names", false, "prints out field names, if using -message-type")
 )
 
 func main() {
@@ -78,6 +88,45 @@ func Main() error {
 		return nil
 	}
 
+	var schema protoreflect.MessageDescriptor
+	if *descriptorSet != "" || *messageType != "" {
+		if *assemble {
+			return errors.New("-message-type and -descriptor-set cannot be mixed with -s")
+		}
+		if *descriptorSet == "" {
+			return errors.New("-message-type without -descriptor-set")
+		}
+		if *messageType == "" {
+			return errors.New("-descriptor-set without -message-type")
+		}
+
+		descBytes, err := os.ReadFile(*descriptorSet)
+		if err != nil {
+			return err
+		}
+
+		var fds descriptorpb.FileDescriptorSet
+		if err := proto.Unmarshal(descBytes, &fds); err != nil {
+			return err
+		}
+
+		files, err := protodesc.NewFiles(&fds)
+		if err != nil {
+			return err
+		}
+
+		desc, err := files.FindDescriptorByName(protoreflect.FullName(*messageType))
+		if err != nil {
+			return err
+		}
+
+		if msgDesc, ok := desc.(protoreflect.MessageDescriptor); ok {
+			schema = msgDesc
+		} else {
+			return fmt.Errorf("not a message type: %s", *messageType)
+		}
+	}
+
 	inPath := ""
 	inFile := os.Stdin
 	if flag.NArg() == 1 {
@@ -112,6 +161,9 @@ func Main() error {
 			ExplicitWireTypes:      *explicitWireTypes,
 			NoGroups:               *noGroups,
 			ExplicitLengthPrefixes: *explicitLengthPrefixes,
+
+			Schema:          schema,
+			PrintFieldNames: *printFieldNames,
 		}))
 	}
 

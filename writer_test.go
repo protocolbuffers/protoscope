@@ -23,10 +23,46 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 //go:embed testdata/*
 var testdata embed.FS
+
+var fileset = ParseFileSet()
+
+func ParseFileSet() *protoregistry.Files {
+	data, err := testdata.ReadFile("testdata/unittest.proto.pb")
+	if err != nil {
+		panic(err)
+	}
+
+	fds := new(descriptorpb.FileDescriptorSet)
+	if err := proto.Unmarshal(data, fds); err != nil {
+		panic(err)
+	}
+
+	files, err := protodesc.NewFiles(fds)
+	if err != nil {
+		panic(err)
+	}
+
+	return files
+}
+
+func GetDesc(name string) protoreflect.MessageDescriptor {
+	desc, err := fileset.FindDescriptorByName(protoreflect.FullName(name))
+	if err != nil {
+		panic(err)
+	}
+
+	return desc.(protoreflect.MessageDescriptor)
+}
 
 func TestGoldens(t *testing.T) {
 	type golden struct {
@@ -67,6 +103,11 @@ func TestGoldens(t *testing.T) {
 		opts := WriterOptions{}
 		v := reflect.ValueOf(&opts).Elem()
 		for _, opt := range config[1:] {
+			if name := strings.TrimPrefix(opt, "Schema="); name != opt {
+				opts.Schema = GetDesc(name)
+				continue
+			}
+
 			v.FieldByName(opt).SetBool(true)
 		}
 

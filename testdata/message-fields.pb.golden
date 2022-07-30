@@ -1,0 +1,128 @@
+# message.pb Schema=unittest.TestAllTypes PrintFieldNames
+1: 101        # optional_int32
+2: 102        # optional_int64
+3: 103        # optional_uint32
+4: 104        # optional_uint64
+5: 210        # optional_sint32
+6: 212        # optional_sint64
+7: 107i32     # optional_fixed32
+8: 108i64     # optional_fixed64
+9: 109i32     # optional_sfixed32
+10: 110i64    # optional_sfixed64
+11: 111.0i32  # optional_float, 0x42de0000i32
+12: 112.0     # optional_double, 0x405c000000000000i64
+13: 1         # optional_bool
+14: {"115"}   # optional_string
+15: {"116"}   # optional_bytes
+16: !{        # optionalgroup
+  17: 117     # a
+}
+18: {     # optional_nested_message
+  1: 118  # bb
+}
+19: {     # optional_foreign_message
+  1: 119  # c
+}
+20: {1: 120}  # optional_int32
+21: 3         # optional_nested_enum
+22: 6         # optional_foreign_enum
+23: 9
+24: {"124"}   # optional_string_piece
+25: {"125"}   # optional_cord
+26: {1: 126}  # optional_int32
+27: {         # optional_lazy_message
+  1: 127      # bb
+}
+28: {1: 128}  # optional_int32
+31: 201       # repeated_int32
+31: 301       # repeated_int32
+32: 202       # repeated_int64
+32: 302       # repeated_int64
+33: 203       # repeated_uint32
+33: 303       # repeated_uint32
+34: 204       # repeated_uint64
+34: 304       # repeated_uint64
+35: 410       # repeated_sint32
+35: 610       # repeated_sint32
+36: 412       # repeated_sint64
+36: 612       # repeated_sint64
+37: 207i32    # repeated_fixed32
+37: 307i32    # repeated_fixed32
+38: 208i64    # repeated_fixed64
+38: 308i64    # repeated_fixed64
+39: 209i32    # repeated_sfixed32
+39: 309i32    # repeated_sfixed32
+40: 210i64    # repeated_sfixed64
+40: 310i64    # repeated_sfixed64
+41: 211.0i32  # repeated_float, 0x43530000i32
+41: 311.0i32  # repeated_float, 0x439b8000i32
+42: 212.0     # repeated_double, 0x406a800000000000i64
+42: 312.0     # repeated_double, 0x4073800000000000i64
+43: 1         # repeated_bool
+43: 0         # repeated_bool
+44: {"215"}   # repeated_string
+44: {"315"}   # repeated_string
+45: {"216"}   # repeated_bytes
+45: {"316"}   # repeated_bytes
+46: !{        # repeatedgroup
+  47: 217     # a
+}
+46: !{      # repeatedgroup
+  47: 317   # a
+}
+48: {     # repeated_nested_message
+  1: 218  # bb
+}
+48: {     # repeated_nested_message
+  1: 318  # bb
+}
+49: {     # repeated_foreign_message
+  1: 219  # c
+}
+49: {     # repeated_foreign_message
+  1: 319  # c
+}
+50: {1: 220}  # optional_int32
+50: {1: 320}  # optional_int32
+51: 2         # repeated_nested_enum
+51: 3         # repeated_nested_enum
+52: 5         # repeated_foreign_enum
+52: 6         # repeated_foreign_enum
+53: 8
+53: 9
+54: {"224"}   # repeated_string_piece
+54: {"324"}   # repeated_string_piece
+55: {"225"}   # repeated_cord
+55: {"325"}   # repeated_cord
+57: {         # repeated_lazy_message
+  1: 227      # bb
+}
+57: {     # repeated_lazy_message
+  1: 327  # bb
+}
+61: 401       # default_int32
+62: 402       # default_int64
+63: 403       # default_uint32
+64: 404       # default_uint64
+65: 810       # default_sint32
+66: 812       # default_sint64
+67: 407i32    # default_fixed32
+68: 408i64    # default_fixed64
+69: 409i32    # default_sfixed32
+70: 410i64    # default_sfixed64
+71: 411.0i32  # default_float, 0x43cd8000i32
+72: 412.0     # default_double, 0x4079c00000000000i64
+73: 0         # default_bool
+74: {"415"}   # default_string
+75: {"416"}   # default_bytes
+81: 1         # default_nested_enum
+82: 4         # default_foreign_enum
+83: 7
+84: {"424"}   # default_string_piece
+85: {"425"}   # default_cord
+111: 601      # oneof_uint32
+112: {        # oneof_nested_message
+  1: 602      # bb
+}
+113: {"603"}  # oneof_string
+114: {"604"}  # oneof_bytes
