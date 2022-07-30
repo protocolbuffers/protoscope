@@ -56,7 +56,10 @@ func ParseFileSet() *protoregistry.Files {
 }
 
 func GetDesc(name string) protoreflect.MessageDescriptor {
-	desc, err := fileset.FindDescriptorByName(protoreflect.FullName(name))
+	desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(name))
+	if err != nil {
+		desc, err = fileset.FindDescriptorByName(protoreflect.FullName(name))
+	}
 	if err != nil {
 		panic(err)
 	}
