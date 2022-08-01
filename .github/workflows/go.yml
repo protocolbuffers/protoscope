@@ -30,8 +30,7 @@ jobs:
         go-version: '^1.18.0'
     - name: go fmt
       run: |
-        go fmt | tee -a modified
-        go fmt ./cmd/protoscope | tee -a modified
+        go fmt . ./cmd/* ./internal/* | tee -a modified
         if [[ $(cat modified) ]]; then exit 1; fi;
 
   tests:
