@@ -16,25 +16,14 @@ package protoscope
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/protocolbuffers/protoscope/internal/print"
 )
-
-type stack[T any] []T
-
-func (s *stack[T]) Push(x T) {
-	*s = append(*s, x)
-}
-
-func (s *stack[T]) Pop() T {
-	popped := (*s)[len(*s)-1]
-	*s = (*s)[:len(*s)-1]
-	return popped
-}
 
 // WriterOptions represents options that can be passed to control the writer's
 // decoding heuristics.
@@ -56,42 +45,26 @@ type WriterOptions struct {
 
 func Write(src []byte, opts WriterOptions) string {
 	w := writer{WriterOptions: opts}
+	w.Indent = 2
+	w.MaxFolds = 3
 
 	for len(src) > 0 {
-		w.newLine()
+		w.NewLine()
 		rest, ok := w.decodeField(src)
 		if !ok {
-			w.lines = w.lines[:len(w.lines)-1]
+			w.DiscardLine()
 			break
 		}
 		src = rest
 	}
 
 	// Order does not matter for fixing up unclosed groups
-	for _, g := range w.groups {
-		w.resetGroup(g)
+	for _ = range w.groups {
+		w.resetGroup()
 	}
 
-	if len(src) > 0 {
-		w.newLine()
-		w.dumpHexString(src)
-	}
-
-	var out strings.Builder
-	indent := 0
-	for _, line := range w.lines {
-		for i := 0; i < indent; i++ {
-			fmt.Fprint(&out, "  ")
-		}
-		indent += line.indent
-		fmt.Fprint(&out, strings.TrimSpace(line.text.String()))
-		if comment := line.comment.String(); comment != "" {
-			fmt.Fprint(&out, "  # ", comment)
-		}
-		fmt.Fprintln(&out)
-	}
-
-	return out.String()
+	w.dumpHexString(src)
+	return string(w.Finish())
 }
 
 type line struct {
@@ -102,86 +75,40 @@ type line struct {
 	indent int
 }
 
-type groupInfo struct {
-	line  int
-	field uint64
-}
-
 type writer struct {
 	WriterOptions
-	lines  []line
-	groups stack[groupInfo]
-}
+	print.Printer
 
-func (w *writer) write(args ...any) {
-	fmt.Fprint(w.line(-1).text, args...)
-}
-
-func (w *writer) writef(f string, args ...any) {
-	fmt.Fprintf(w.line(-1).text, f, args...)
-}
-
-func (w *writer) commentf(f string, args ...any) {
-	fmt.Fprintf(w.line(-1).comment, f, args...)
-}
-
-func (w *writer) newLine() {
-	w.lines = append(w.lines, line{
-		text:    new(strings.Builder),
-		comment: new(strings.Builder),
-	})
-}
-
-func (w *writer) popLines(n int) {
-	w.lines = w.lines[:len(w.lines)-n]
-}
-
-func (w *writer) mergeLines(n int, delim string) {
-	onto := w.line(-n - 1)
-	for _, line := range w.lines[len(w.lines)-n:] {
-		onto.text.WriteString(delim)
-		onto.text.WriteString(line.text.String())
-		onto.comment.WriteString(line.comment.String())
-	}
-	w.popLines(n)
-}
-
-// line returns the nth line in the writer; negative values are relative to the
-// newest line (i.e., -1 returns the current line).
-func (w *writer) line(n int) *line {
-	if n < 0 {
-		return &w.lines[len(w.lines)+n]
-	}
-	return &w.lines[n]
+	groups print.Stack[uint64]
 }
 
 func (w *writer) dumpHexString(src []byte) {
-	w.write("`")
+	if len(src) == 0 {
+		return
+	}
 
+	w.NewLine()
+	w.Write("`")
 	for i, b := range src {
 		if i > 0 && i%40 == 0 {
-			w.write("`")
-			w.newLine()
-			w.write("`")
+			w.Write("`")
+			w.NewLine()
+			w.Write("`")
 		}
-		w.writef("%02x", b)
+		w.Writef("%02x", b)
 	}
-	w.write("`")
+	w.Write("`")
 }
 
-func (w *writer) resetGroup(g groupInfo) {
+func (w *writer) resetGroup() {
 	// Do some surgery on the line with the !{ to replace it with an SGROUP.
-	start := w.line(g.line).text
-	prev := start.String()
+	start := w.DropBlock()
 
 	if !w.NoGroups {
-		start.Reset()
-		start.WriteString(strings.TrimSuffix(prev, " !{"))
+		// Remove the trailing " !{"
+		start.Truncate(start.Len() - 3)
 		start.WriteString("SGROUP")
 	}
-
-	// Unindent everything that was speculatively indented forwards.
-	w.line(g.line).indent--
 }
 
 func (w *writer) decodeField(src []byte) ([]byte, bool) {
@@ -197,14 +124,14 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 	}
 
 	if extra > 0 {
-		w.writef("long-form:%d ", extra)
+		w.Writef("long-form:%d ", extra)
 	}
-	w.writef("%d:", value>>3)
+	w.Writef("%d:", value>>3)
 
 	switch value & 0x7 {
 	case 0:
 		if w.ExplicitWireTypes {
-			w.writef("VARINT")
+			w.Writef("VARINT")
 		}
 
 		rest, value, extra, ok := decodeVarint(src)
@@ -214,71 +141,55 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src = rest
 
 		if extra > 0 {
-			w.writef(" long-form:%d", extra)
+			w.Writef(" long-form:%d", extra)
 		}
-		w.writef(" %d", int64(value))
+		w.Writef(" %d", int64(value))
 
 	case 3:
 		if w.ExplicitWireTypes || w.NoGroups {
-			w.writef("SGROUP")
+			w.Writef("SGROUP")
+			w.StartBlock(print.BlockInfo{
+				HasDelimiters:  false,
+				HeightToFoldAt: 2,
+				UnindentAt:     1,
+			})
 		} else {
-			w.writef(" !{")
+			w.Writef(" !{")
+			w.StartBlock(print.BlockInfo{
+				HasDelimiters:  true,
+				HeightToFoldAt: 3,
+				UnindentAt:     1,
+			})
 		}
 
-		w.line(-1).indent++
-		w.groups.Push(groupInfo{
-			line:  len(w.lines) - 1,
-			field: value >> 3,
-		})
+		w.groups.Push(value >> 3)
 
 	case 4:
 		if len(w.groups) == 0 {
-			w.writef("EGROUP")
+			w.Writef("EGROUP")
 		} else {
 			lastGroup := w.groups.Pop()
-
-			if lastGroup.field == value>>3 {
+			if lastGroup == value>>3 {
 				if w.ExplicitWireTypes || w.NoGroups {
-					w.line(-2).indent--
-					w.writef("EGROUP")
+					w.Writef("EGROUP")
 				} else {
-					w.line(-1).text.Reset()
-
-					groupLen := len(w.lines) - 2 - lastGroup.line
-					switch groupLen {
-					case 0:
-						// If this is an empty group, merge it into one line.
-						w.popLines(1)
-						if extra > 0 {
-							w.writef("long-form:%d", extra)
-						}
-						w.line(-1).indent--
-					case 1:
-						// If there is a single line, merge it into one line. This
-						// requires somewhat more care to avoid crushing comments.
-						w.mergeLines(2, "")
-						if extra > 0 {
-							w.writef(" long-form:%d", extra)
-						}
-						w.line(-1).indent--
-					default:
-						if extra > 0 {
-							w.writef("long-form:%d", extra)
-							w.newLine()
-						}
-						w.line(-2).indent--
+					w.Current().Reset()
+					if extra > 0 {
+						w.Writef("long-form:%d", extra)
+						w.NewLine()
 					}
-					w.writef("}")
+					w.Writef("}")
 				}
+				w.EndBlock()
 			} else {
-				w.resetGroup(lastGroup)
-				w.writef("EGROUP")
+				w.resetGroup()
+				w.Writef("EGROUP")
 			}
 		}
 
 	case 1:
 		if w.ExplicitWireTypes {
-			w.writef("I64")
+			w.Writef("I64")
 		}
 
 		// Assume this is a float by default.
@@ -290,22 +201,22 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		value := math.Float64frombits(bits)
 
 		if math.IsInf(value, 1) {
-			w.write(" inf64")
+			w.Write(" inf64")
 		} else if math.IsInf(value, -1) {
-			w.write(" -inf64")
+			w.Write(" -inf64")
 		} else if math.IsNaN(value) {
-			w.writef(" 0x%xi64", bits)
+			w.Writef(" 0x%xi64", bits)
 		} else {
 			if s := ftoa(bits); s != "" {
-				w.writef(" %s", s)
-				w.commentf("%#xi64", int64(bits))
+				w.Writef(" %s", s)
+				w.Remarkf("%#xi64", int64(bits))
 			} else {
-				w.writef(" %di64", int64(bits))
+				w.Writef(" %di64", int64(bits))
 			}
 		}
 	case 5:
 		if w.ExplicitWireTypes {
-			w.writef("I32")
+			w.Writef("I32")
 		}
 
 		// Assume this is a float by default.
@@ -317,24 +228,24 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		value := float64(math.Float32frombits(bits))
 
 		if math.IsInf(value, 1) {
-			w.write(" inf32")
+			w.Write(" inf32")
 		} else if math.IsInf(value, -1) {
-			w.write(" -inf32")
+			w.Write(" -inf32")
 		} else if math.IsNaN(value) {
-			w.writef(" 0x%xi32", bits)
+			w.Writef(" 0x%xi32", bits)
 		} else {
 			if s := ftoa(bits); s != "" {
-				w.writef(" %si32", s)
-				w.commentf("%#xi32", int32(bits))
+				w.Writef(" %si32", s)
+				w.Remarkf("%#xi32", int32(bits))
 
 			} else {
-				w.writef(" %di32", int32(bits))
+				w.Writef(" %di32", int32(bits))
 			}
 		}
 
 	case 2:
 		if w.ExplicitWireTypes || w.ExplicitLengthPrefixes {
-			w.writef("LEN")
+			w.Writef("LEN")
 		}
 
 		rest, value, extra, ok := decodeVarint(src)
@@ -351,34 +262,43 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		src = src[int(value):]
 
 		if extra > 0 {
-			w.writef(" long-form:%d", extra)
+			w.Writef(" long-form:%d", extra)
 		}
 		if w.ExplicitLengthPrefixes {
-			w.writef(" %d", int64(value))
+			w.Writef(" %d", int64(value))
+			w.StartBlock(print.BlockInfo{
+				HasDelimiters:  false,
+				HeightToFoldAt: 2,
+				UnindentAt:     0,
+			})
 		} else {
-			w.write(" {")
+			w.Write(" {")
+			w.StartBlock(print.BlockInfo{
+				HasDelimiters:  true,
+				HeightToFoldAt: 3,
+				UnindentAt:     1,
+			})
 		}
-		w.line(-1).indent++
 
 		// First, assume this is a message.
-		startLine := len(w.lines)
+		startLine := w.Mark()
 		src2 := delimited
 		outerGroups := w.groups
 		w.groups = nil
 		for len(src2) > 0 {
-			w.newLine()
+			w.NewLine()
 			s, ok := w.decodeField(src2)
 			if !ok {
 				// Clip off an incompletely printed line.
-				w.popLines(1)
+				w.DiscardLine()
 				break
 			}
 			src2 = s
 		}
 
 		// Order does not matter for fixing up unclosed groups
-		for _, g := range w.groups {
-			w.resetGroup(g)
+		for _ = range w.groups {
+			w.resetGroup()
 		}
 		w.groups = outerGroups
 
@@ -387,35 +307,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 		// parsing, we'll continue regardless. We don't bother in the case where we
 		// failed at the start because the `...` case below will do a cleaner job.
 		if len(src2) == 0 || (w.AllFieldsAreMessages && len(src2) < len(delimited)) {
-
-			oneLiner := false
-			if len(src2) > 0 {
-				w.newLine()
-				w.dumpHexString(src2)
-			} else if len(w.lines) == startLine+1 {
-				if w.ExplicitLengthPrefixes {
-					w.mergeLines(1, " ")
-				} else {
-					w.mergeLines(1, "")
-				}
-				oneLiner = true
-			}
-
-			w.line(-1).indent--
-
-			if !w.ExplicitLengthPrefixes {
-				if !oneLiner {
-					w.newLine()
-				}
-				w.write("}")
-			}
-			return src, true
+			delimited = src2
+			goto justBytes
 		} else {
-			w.lines = w.lines[:startLine]
-		}
-
-		if w.ExplicitLengthPrefixes {
-			w.writef(" ")
+			w.Reset(startLine)
 		}
 
 		// Otherwise, maybe it's a UTF-8 string.
@@ -433,62 +328,47 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				goto justBytes
 			}
 
-			if runes > 80 {
-				w.newLine()
-			}
-			w.write("\"")
-
+			w.NewLine()
+			w.Write("\"")
 			for i, r := range s {
 				if i != 0 && i%80 == 0 {
-					w.write("\"")
-					w.newLine()
-					w.write("\"")
+					w.Write("\"")
+					w.NewLine()
+					w.Write("\"")
 				}
 
 				switch r {
 				case '\n':
-					w.write("\\n")
+					w.Write("\\n")
 				case '\\':
-					w.write("\\\\")
+					w.Write("\\\\")
 				case '"':
-					w.write("\\\"")
+					w.Write("\\\"")
 				default:
 					if !unicode.IsGraphic(r) {
 						enc := make([]byte, 4)
 						enc = enc[:utf8.EncodeRune(enc, r)]
 						for _, b := range enc {
-							w.writef("\\x%02x", b)
+							w.Writef("\\x%02x", b)
 						}
 					} else {
-						w.writef("%c", r)
+						w.Writef("%c", r)
 					}
 				}
 			}
-
-			w.write("\"")
-			w.line(-1).indent--
-			if !w.ExplicitLengthPrefixes {
-				if runes > 80 {
-					w.newLine()
-				}
-				w.write("}")
-			}
-			return src, true
+			w.Write("\"")
+			delimited = nil
+			goto justBytes
 		}
 
 		// Who knows what it is? Bytes or something.
 	justBytes:
-		if len(delimited) > 40 {
-			w.newLine()
-		}
 		w.dumpHexString(delimited)
-		w.line(-1).indent--
 		if !w.ExplicitLengthPrefixes {
-			if len(delimited) > 40 {
-				w.newLine()
-			}
-			w.write("}")
+			w.NewLine()
+			w.Write("}")
 		}
+		w.EndBlock()
 	case 6, 7:
 		return nil, false
 	}
