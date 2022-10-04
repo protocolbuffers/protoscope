@@ -435,23 +435,33 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			w.FoldIntoColumns(8, count)
 		}
 
+		decodeBytes := func() ([]byte, bool) {
+			w.dumpHexString(delimited)
+			if !w.ExplicitLengthPrefixes {
+				w.NewLine()
+				w.Write("}")
+			}
+			w.EndBlock()
+			return src, true
+		}
+
 		switch ftype {
 		case protoreflect.BoolKind, protoreflect.EnumKind,
 			protoreflect.Int32Kind, protoreflect.Int64Kind,
 			protoreflect.Uint32Kind, protoreflect.Uint64Kind,
 			protoreflect.Sint32Kind, protoreflect.Sint64Kind:
 			decodePacked(w.decodeVarint)
-			goto decodeBytes
+			return decodeBytes()
 
 		case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind,
 			protoreflect.FloatKind:
 			decodePacked(w.decodeI32)
-			goto decodeBytes
+			return decodeBytes()
 
 		case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind,
 			protoreflect.DoubleKind:
 			decodePacked(w.decodeI64)
-			goto decodeBytes
+			return decodeBytes()
 
 		case protoreflect.StringKind, protoreflect.BytesKind:
 			goto decodeUtf8
@@ -493,7 +503,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			// failed at the start because the `...` case below will do a cleaner job.
 			if len(src2) == 0 || (w.AllFieldsAreMessages && len(src2) < len(delimited)) {
 				delimited = src2
-				goto decodeBytes
+				return decodeBytes()
 			} else {
 				w.Reset(startLine)
 			}
@@ -512,7 +522,7 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 				}
 			}
 			if float64(unprintable)/float64(runes) > 0.3 {
-				goto decodeBytes
+				return decodeBytes()
 			}
 
 			w.NewLine()
@@ -545,17 +555,10 @@ func (w *writer) decodeField(src []byte) ([]byte, bool) {
 			}
 			w.Write("\"")
 			delimited = nil
-			goto decodeBytes
 		}
 
 		// Who knows what it is? Bytes or something.
-	decodeBytes:
-		w.dumpHexString(delimited)
-		if !w.ExplicitLengthPrefixes {
-			w.NewLine()
-			w.Write("}")
-		}
-		w.EndBlock()
+		return decodeBytes()
 	case 6, 7:
 		return nil, false
 	}
