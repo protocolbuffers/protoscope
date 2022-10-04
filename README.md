@@ -3,36 +3,44 @@
 *Protobuf + Rotoscope*
 
 Protoscope is a simple, human-editable language for representing and emitting
-the [Protobuf wire format](https://developers.google.com/protocol-buffers/docs/encoding).
+the
+[Protobuf wire format](https://developers.google.com/protocol-buffers/docs/encoding).
 It is inspired by, and is significantly based on,
-[DER ASCII](https://github.com/google/der-ascii), a similar tool for working with
-DER and BER, wire formats of ASN.1.
+[DER ASCII](https://github.com/google/der-ascii), a similar tool for working
+with DER and BER, wire formats of ASN.1.
 
-Unlike most Protobuf tools, it is normally ignorant of schemata specified in `.proto`
-files; it has just enough knowledge of the wire format to provide primitives for 
-constructing messages (such as field tags, varints, and length prefixes). A disassembler
-is included that uses heuristics to try convert encoded Protobuf into Protoscope,
-although the heuristics are necessarily imperfect.
+Unlike most Protobuf tools, it is normally ignorant of schemata specified in
+`.proto` files; it has just enough knowledge of the wire format to provide
+primitives for constructing messages (such as field tags, varints, and length
+prefixes). A disassembler is included that uses heuristics to try convert
+encoded Protobuf into Protoscope, although the heuristics are necessarily
+imperfect.
 
-We provide the Go package `github.com/protocolbuffers/protoscope`, as well as the `protoscope`
-tool, which can be installed with the Go tool via
+We provide the Go package `github.com/protocolbuffers/protoscope`, as well as
+the `protoscope` tool, which can be installed with the Go tool via
 
-    go install github.com/protocolbuffers/protoscope/cmd/protoscope...@latest
+```
+go install github.com/protocolbuffers/protoscope/cmd/protoscope...@latest
+```
 
-For the language specification and basic examples, see [language.txt](/language.txt).
-Example disassembly can be found under [./testdata](/testdata).
+For the language specification and basic examples, see
+[language.txt](/language.txt). Example disassembly can be found under
+[./testdata](/testdata).
 
 ## Cookbook
 
-Protoscope can be used in a number of different ways to inspect or create binary Protobuf
-data. This isn't the full breadth of usecases, but they are the ones Protoscope
-(and its ancestor, DER ASCII) were designed for.
+Protoscope can be used in a number of different ways to inspect or create binary
+Protobuf data. This isn't the full breadth of usecases, but they are the ones
+Protoscope (and its ancestor, DER ASCII) were designed for.
 
 ### Exploring Binary Dumps
 
-Sometimes, while working on a library that emits wire format, it may be necessary to debug
-the precise output of a test failure. If your test prints out a hex string, you can use
-the `xxd` command to turn it into raw binary data and pipe it into `protoscope`:
+Sometimes, while working on a library that emits wire format, it may be
+necessary to debug the precise output of a test failure. If your test prints out
+a hex string, you can use the `xxd` command to turn it into raw binary data and
+pipe it into `protoscope`.
+
+Consider the following example of a message with a `google.protobuf.Any` field:
 
 ```sh
 $ cat hexdata.txt
@@ -50,8 +58,8 @@ $ xxd -r -ps <<< "1005420e65787065637465645f76616c756500000000" | protoscope
 
 This reveals that four zero bytes sneaked into the output!
 
-If your test failure output is made up of C-style escapes and text, the `printf` command
-can be used instead of `xxd`:
+If your test failure output is made up of C-style escapes and text, the `printf`
+command can be used instead of `xxd`:
 
 ```sh
 $ printf '\x10\x05B\x0eexpected_value\x00\x00\x00\x00' | protoscope
@@ -60,11 +68,11 @@ $ printf '\x10\x05B\x0eexpected_value\x00\x00\x00\x00' | protoscope
 `00000000`
 ```
 
-The `protoscope` command has many flags for refining the heuristic used to decode the
-binary.
+The `protoscope` command has many flags for refining the heuristic used to
+decode the binary.
 
-If an encoded `FileDescriptorSet` proto is available that contains your message's type,
-you can use it to get schema-aware decoding:
+If an encoded `FileDescriptorSet` proto is available that contains your
+message's type, you can use it to get schema-aware decoding:
 
 ```sh
 $ cat hexdata.txt
@@ -110,10 +118,11 @@ $ protoscope foo.bin
 }
 ```
 
-Modifying the embedded string with a hex editor is very painful, because it's possible that
-the length prefix needs to be updated, which can lead to the length prefix on outer messages
-needing to be changed as well. This is made worse by length prefixes being varints, which may
-grow or shrink and feed into further outer length prefix updates.
+Modifying the embedded string with a hex editor is very painful, because it's
+possible that the length prefix needs to be updated, which can lead to the
+length prefix on outer messages needing to be changed as well. This is made
+worse by length prefixes being varints, which may grow or shrink and feed into
+further outer length prefix updates.
 
 But `protoscope` makes this into a simple disassemble, edit, assembly loop:
 
@@ -143,16 +152,17 @@ $ xxd foo.bin
 00000020: 6f6d 6520 7072 6f74 6f                   ome proto
 ```
 
-The `-message-type` option from above can be used when you know the schema to make it easier
-to find specific fields.
+The `-message-type` option from above can be used when you know the schema to
+make it easier to find specific fields.
 
 ### Describing Invalid Binaries
 
-Because Protoscope has a very weak understanding of Protobuf, it can be used to create
-invalid encodings to verify that some invariant is actually checked by a production parser.
+Because Protoscope has a very weak understanding of Protobuf, it can be used to
+create invalid encodings to verify that some invariant is actually checked by a
+production parser.
 
-For example, the following Protoscope text can be used to create a test that ensures
-a too-long length prefix is rejected as invalid.
+For example, the following Protoscope text can be used to create a test that
+ensures a too-long length prefix is rejected as invalid.
 
 ```
 1: {
@@ -161,33 +171,34 @@ a too-long length prefix is rejected as invalid.
 }
 ```
 
-This is more conveinent than typing out bytes by hand, because Protoscope takes care of
-tedious details like length prefixes, varint encoding, float encoding, and other things
-not relevant to the test. It also permits comments, which can be used to specify why the
-Protoscope snippet produces a broken binary.
+This is more conveinent than typing out bytes by hand, because Protoscope takes
+care of tedious details like length prefixes, varint encoding, float encoding,
+and other things not relevant to the test. It also permits comments, which can
+be used to specify why the Protoscope snippet produces a broken binary.
 
-Protoscope itself generates test data using Protoscope, which is then checked in. Other
-projects can either check in binary data directly, or use the build system to invoke
-`protoscope`, such as with a Bazel `genrule()`.
+Protoscope itself generates test data using Protoscope, which is then checked
+in. Other projects can either check in binary data directly, or use the build
+system to invoke `protoscope`, such as with a Bazel `genrule()`.
 
 ## Backwards Compatibility
 
 The Protoscope language itself may be extended over time, but the intention is
 for extensions to be backwards-compatible. Specifically:
 
-* The command-line interface to `protoscope` will remain compatible, though new
-  options may be added in the future.
+*   The command-line interface to `protoscope` will remain compatible, though
+    new options may be added in the future.
 
-* Previously valid Protoscope will remain valid and produce the same output.
-  In particular, checking in test data as Protoscope text should be future-proof.
+*   Previously valid Protoscope will remain valid and produce the same output.
+    In particular, checking in test data as Protoscope text should be
+    future-proof.
 
-* Previously invalid Protoscope may become valid in the future if
-  the language is extended.
+*   Previously invalid Protoscope may become valid in the future if the language
+    is extended.
 
-* Disassembly is necessarily a heuristic, so its output *may* change over time,
-  but it is guaranteed to produce Protoscope output that will reassemble to the
-  original byte string. `protoscope | protoscope -s` is always equivalent to
-  `cat`.
+*   Disassembly is necessarily a heuristic, so its output *may* change over
+    time, but it is guaranteed to produce Protoscope output that will reassemble
+    to the original byte string. `protoscope | protoscope -s` is always
+    equivalent to `cat`.
 
 ## Disclaimer
 
