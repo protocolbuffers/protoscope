@@ -46,7 +46,8 @@ var (
 
 	descriptorSet = flag.String("descriptor-set", "", "path to a file containing an encoded FileDescriptorSet, for aiding disassembly")
 	messageType   = flag.String("message-type", "", "full name of a type in the FileDescriptorSet given by -descriptor-set;\n"+
-		"the input file will be heuristically assumed to be an encoded proto of this type")
+		"the decoder will assume that the input file is an encoded binary proto\n"+
+		"of this type for the purposes of providing better output")
 	printFieldNames = flag.Bool("print-field-names", false, "prints out field names, if using -message-type")
 	printEnumNames  = flag.Bool("print-enum-names", false, "prints out enum value names, if using -message-type")
 )

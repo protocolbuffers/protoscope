@@ -293,7 +293,7 @@ inf32
 #
 #    d. An int64 if none of the above apply.
 #
-# 4. If the wire type is 1 or 5, parse eight or four bytes and encoded as:
+# 4. If the wire type is 1 or 5, parse eight or four bytes and encode as:
 #
 #    a. A fixed64/fixed32 (resp) if the field is any of the unsigned integer
 #       types.
