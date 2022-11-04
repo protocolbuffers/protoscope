@@ -23,6 +23,9 @@ the `protoscope` tool, which can be installed with the Go tool via
 go install github.com/protocolbuffers/protoscope/cmd/protoscope...@latest
 ```
 
+`go install` will place the binary in the `GOBIN` directory, which is
+`~/go/bin` by default. See the [docs for `go install`](https://pkg.go.dev/cmd/go#hdr-Compile_and_install_packages_and_dependencies) for more details.
+
 For the language specification and basic examples, see
 [language.txt](/language.txt). Example disassembly can be found under
 [./testdata](/testdata).
