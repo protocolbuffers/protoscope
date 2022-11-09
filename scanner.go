@@ -15,6 +15,8 @@
 // package protoscope ...
 package protoscope
 
+// DO NOT SUBMIT
+
 import (
 	"encoding/binary"
 	"encoding/hex"
