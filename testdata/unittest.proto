@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// See https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/unittest.proto
+// See
+// https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/unittest.proto
 
 syntax = "proto2";
 
 package unittest;
+
 option optimize_for = SPEED;
 
 // This proto includes every type of field in both singular and repeated
@@ -37,91 +39,92 @@ message TestAllTypes {
   }
 
   // Singular
-  optional    int32 optional_int32    =  1;
-  optional    int64 optional_int64    =  2;
-  optional   uint32 optional_uint32   =  3;
-  optional   uint64 optional_uint64   =  4;
-  optional   sint32 optional_sint32   =  5;
-  optional   sint64 optional_sint64   =  6;
-  optional  fixed32 optional_fixed32  =  7;
-  optional  fixed64 optional_fixed64  =  8;
-  optional sfixed32 optional_sfixed32 =  9;
+  optional int32 optional_int32 = 1;
+  optional int64 optional_int64 = 2;
+  optional uint32 optional_uint32 = 3;
+  optional uint64 optional_uint64 = 4;
+  optional sint32 optional_sint32 = 5;
+  optional sint64 optional_sint64 = 6;
+  optional fixed32 optional_fixed32 = 7;
+  optional fixed64 optional_fixed64 = 8;
+  optional sfixed32 optional_sfixed32 = 9;
   optional sfixed64 optional_sfixed64 = 10;
-  optional    float optional_float    = 11;
-  optional   double optional_double   = 12;
-  optional     bool optional_bool     = 13;
-  optional   string optional_string   = 14;
-  optional    bytes optional_bytes    = 15;
+  optional float optional_float = 11;
+  optional double optional_double = 12;
+  optional bool optional_bool = 13;
+  optional string optional_string = 14;
+  optional bytes optional_bytes = 15;
 
   optional group OptionalGroup = 16 {
     optional int32 a = 17;
   }
 
-  optional NestedMessage                        optional_nested_message  = 18;
-  optional ForeignMessage                       optional_foreign_message = 19;
+  optional NestedMessage optional_nested_message = 18;
+  optional ForeignMessage optional_foreign_message = 19;
 
-  optional NestedEnum                           optional_nested_enum     = 21;
-  optional ForeignEnum                          optional_foreign_enum    = 22;
+  optional NestedEnum optional_nested_enum = 21;
+  optional ForeignEnum optional_foreign_enum = 22;
 
-  optional string optional_string_piece = 24 [ctype=STRING_PIECE];
-  optional string optional_cord = 25 [ctype=CORD];
+  optional string optional_string_piece = 24 [ctype = STRING_PIECE];
+  optional string optional_cord = 25 [ctype = CORD];
 
-  optional NestedMessage optional_lazy_message = 27 [lazy=true];
+  optional NestedMessage optional_lazy_message = 27 [lazy = true];
 
   // Repeated
-  repeated    int32 repeated_int32    = 31;
-  repeated    int64 repeated_int64    = 32;
-  repeated   uint32 repeated_uint32   = 33;
-  repeated   uint64 repeated_uint64   = 34;
-  repeated   sint32 repeated_sint32   = 35;
-  repeated   sint64 repeated_sint64   = 36;
-  repeated  fixed32 repeated_fixed32  = 37;
-  repeated  fixed64 repeated_fixed64  = 38;
+  repeated int32 repeated_int32 = 31;
+  repeated int64 repeated_int64 = 32;
+  repeated uint32 repeated_uint32 = 33;
+  repeated uint64 repeated_uint64 = 34;
+  repeated sint32 repeated_sint32 = 35;
+  repeated sint64 repeated_sint64 = 36;
+  repeated fixed32 repeated_fixed32 = 37;
+  repeated fixed64 repeated_fixed64 = 38;
   repeated sfixed32 repeated_sfixed32 = 39;
   repeated sfixed64 repeated_sfixed64 = 40;
-  repeated    float repeated_float    = 41;
-  repeated   double repeated_double   = 42;
-  repeated     bool repeated_bool     = 43;
-  repeated   string repeated_string   = 44;
-  repeated    bytes repeated_bytes    = 45;
+  repeated float repeated_float = 41;
+  repeated double repeated_double = 42;
+  repeated bool repeated_bool = 43;
+  repeated string repeated_string = 44;
+  repeated bytes repeated_bytes = 45;
 
   repeated group RepeatedGroup = 46 {
     optional int32 a = 47;
   }
 
-  repeated NestedMessage                        repeated_nested_message  = 48;
-  repeated ForeignMessage                       repeated_foreign_message = 49;
+  repeated NestedMessage repeated_nested_message = 48;
+  repeated ForeignMessage repeated_foreign_message = 49;
 
-  repeated NestedEnum                           repeated_nested_enum     = 51;
-  repeated ForeignEnum                          repeated_foreign_enum    = 52;
+  repeated NestedEnum repeated_nested_enum = 51;
+  repeated ForeignEnum repeated_foreign_enum = 52;
 
-  repeated string repeated_string_piece = 54 [ctype=STRING_PIECE];
-  repeated string repeated_cord = 55 [ctype=CORD];
+  repeated string repeated_string_piece = 54 [ctype = STRING_PIECE];
+  repeated string repeated_cord = 55 [ctype = CORD];
 
-  repeated NestedMessage repeated_lazy_message = 57 [lazy=true];
+  repeated NestedMessage repeated_lazy_message = 57 [lazy = true];
 
   // Singular with defaults
-  optional    int32 default_int32    = 61 [default =  41    ];
-  optional    int64 default_int64    = 62 [default =  42    ];
-  optional   uint32 default_uint32   = 63 [default =  43    ];
-  optional   uint64 default_uint64   = 64 [default =  44    ];
-  optional   sint32 default_sint32   = 65 [default = -45    ];
-  optional   sint64 default_sint64   = 66 [default =  46    ];
-  optional  fixed32 default_fixed32  = 67 [default =  47    ];
-  optional  fixed64 default_fixed64  = 68 [default =  48    ];
-  optional sfixed32 default_sfixed32 = 69 [default =  49    ];
-  optional sfixed64 default_sfixed64 = 70 [default = -50    ];
-  optional    float default_float    = 71 [default =  51.5  ];
-  optional   double default_double   = 72 [default =  52e3  ];
-  optional     bool default_bool     = 73 [default = true   ];
-  optional   string default_string   = 74 [default = "hello"];
-  optional    bytes default_bytes    = 75 [default = "world"];
+  optional int32 default_int32 = 61 [default = 41];
+  optional int64 default_int64 = 62 [default = 42];
+  optional uint32 default_uint32 = 63 [default = 43];
+  optional uint64 default_uint64 = 64 [default = 44];
+  optional sint32 default_sint32 = 65 [default = -45];
+  optional sint64 default_sint64 = 66 [default = 46];
+  optional fixed32 default_fixed32 = 67 [default = 47];
+  optional fixed64 default_fixed64 = 68 [default = 48];
+  optional sfixed32 default_sfixed32 = 69 [default = 49];
+  optional sfixed64 default_sfixed64 = 70 [default = -50];
+  optional float default_float = 71 [default = 51.5];
+  optional double default_double = 72 [default = 52e3];
+  optional bool default_bool = 73 [default = true];
+  optional string default_string = 74 [default = "hello"];
+  optional bytes default_bytes = 75 [default = "world"];
 
-  optional NestedEnum  default_nested_enum  = 81 [default = BAR        ];
+  optional NestedEnum default_nested_enum = 81 [default = BAR];
   optional ForeignEnum default_foreign_enum = 82 [default = FOREIGN_BAR];
 
-  optional string default_string_piece = 84 [ctype=STRING_PIECE,default="abc"];
-  optional string default_cord = 85 [ctype=CORD,default="123"];
+  optional string default_string_piece = 84
+      [ctype = STRING_PIECE, default = "abc"];
+  optional string default_cord = 85 [ctype = CORD, default = "123"];
 
   // For oneof test
   oneof oneof_field {
@@ -137,14 +140,14 @@ message NestedTestAllTypes {
   optional NestedTestAllTypes child = 1;
   optional TestAllTypes payload = 2;
   repeated NestedTestAllTypes repeated_child = 3;
-  optional NestedTestAllTypes lazy_child = 4 [lazy=true];
-  optional TestAllTypes eager_child = 5 [lazy=false];
+  optional NestedTestAllTypes lazy_child = 4 [lazy = true];
+  optional TestAllTypes eager_child = 5 [lazy = false];
 }
 
 message TestDeprecatedFields {
-  optional int32 deprecated_int32 = 1 [deprecated=true];
+  optional int32 deprecated_int32 = 1 [deprecated = true];
   oneof oneof_fields {
-    int32 deprecated_int32_in_oneof = 2 [deprecated=true];
+    int32 deprecated_int32_in_oneof = 2 [deprecated = true];
   }
 }
 
@@ -182,21 +185,21 @@ message TestAllExtensions {
 
 extend TestAllExtensions {
   // Singular
-  optional    int32 optional_int32_extension    =  1;
-  optional    int64 optional_int64_extension    =  2;
-  optional   uint32 optional_uint32_extension   =  3;
-  optional   uint64 optional_uint64_extension   =  4;
-  optional   sint32 optional_sint32_extension   =  5;
-  optional   sint64 optional_sint64_extension   =  6;
-  optional  fixed32 optional_fixed32_extension  =  7;
-  optional  fixed64 optional_fixed64_extension  =  8;
-  optional sfixed32 optional_sfixed32_extension =  9;
+  optional int32 optional_int32_extension = 1;
+  optional int64 optional_int64_extension = 2;
+  optional uint32 optional_uint32_extension = 3;
+  optional uint64 optional_uint64_extension = 4;
+  optional sint32 optional_sint32_extension = 5;
+  optional sint64 optional_sint64_extension = 6;
+  optional fixed32 optional_fixed32_extension = 7;
+  optional fixed64 optional_fixed64_extension = 8;
+  optional sfixed32 optional_sfixed32_extension = 9;
   optional sfixed64 optional_sfixed64_extension = 10;
-  optional    float optional_float_extension    = 11;
-  optional   double optional_double_extension   = 12;
-  optional     bool optional_bool_extension     = 13;
-  optional   string optional_string_extension   = 14;
-  optional    bytes optional_bytes_extension    = 15;
+  optional float optional_float_extension = 11;
+  optional double optional_double_extension = 12;
+  optional bool optional_bool_extension = 13;
+  optional string optional_string_extension = 14;
+  optional bytes optional_bytes_extension = 15;
 
   optional group OptionalGroup_extension = 16 {
     optional int32 a = 17;
@@ -208,28 +211,28 @@ extend TestAllExtensions {
   optional TestAllTypes.NestedEnum optional_nested_enum_extension = 21;
   optional ForeignEnum optional_foreign_enum_extension = 22;
 
-  optional string optional_string_piece_extension = 24 [ctype=STRING_PIECE];
-  optional string optional_cord_extension = 25 [ctype=CORD];
+  optional string optional_string_piece_extension = 24 [ctype = STRING_PIECE];
+  optional string optional_cord_extension = 25 [ctype = CORD];
 
-  optional TestAllTypes.NestedMessage
-    optional_lazy_message_extension = 27 [lazy=true];
+  optional TestAllTypes.NestedMessage optional_lazy_message_extension = 27
+      [lazy = true];
 
   // Repeated
-  repeated    int32 repeated_int32_extension    = 31;
-  repeated    int64 repeated_int64_extension    = 32;
-  repeated   uint32 repeated_uint32_extension   = 33;
-  repeated   uint64 repeated_uint64_extension   = 34;
-  repeated   sint32 repeated_sint32_extension   = 35;
-  repeated   sint64 repeated_sint64_extension   = 36;
-  repeated  fixed32 repeated_fixed32_extension  = 37;
-  repeated  fixed64 repeated_fixed64_extension  = 38;
+  repeated int32 repeated_int32_extension = 31;
+  repeated int64 repeated_int64_extension = 32;
+  repeated uint32 repeated_uint32_extension = 33;
+  repeated uint64 repeated_uint64_extension = 34;
+  repeated sint32 repeated_sint32_extension = 35;
+  repeated sint64 repeated_sint64_extension = 36;
+  repeated fixed32 repeated_fixed32_extension = 37;
+  repeated fixed64 repeated_fixed64_extension = 38;
   repeated sfixed32 repeated_sfixed32_extension = 39;
   repeated sfixed64 repeated_sfixed64_extension = 40;
-  repeated    float repeated_float_extension    = 41;
-  repeated   double repeated_double_extension   = 42;
-  repeated     bool repeated_bool_extension     = 43;
-  repeated   string repeated_string_extension   = 44;
-  repeated    bytes repeated_bytes_extension    = 45;
+  repeated float repeated_float_extension = 41;
+  repeated double repeated_double_extension = 42;
+  repeated bool repeated_bool_extension = 43;
+  repeated string repeated_string_extension = 44;
+  repeated bytes repeated_bytes_extension = 45;
 
   repeated group RepeatedGroup_extension = 46 {
     optional int32 a = 47;
@@ -241,37 +244,37 @@ extend TestAllExtensions {
   repeated TestAllTypes.NestedEnum repeated_nested_enum_extension = 51;
   repeated ForeignEnum repeated_foreign_enum_extension = 52;
 
-  repeated string repeated_string_piece_extension = 54 [ctype=STRING_PIECE];
-  repeated string repeated_cord_extension = 55 [ctype=CORD];
+  repeated string repeated_string_piece_extension = 54 [ctype = STRING_PIECE];
+  repeated string repeated_cord_extension = 55 [ctype = CORD];
 
-  repeated TestAllTypes.NestedMessage
-    repeated_lazy_message_extension = 57 [lazy=true];
+  repeated TestAllTypes.NestedMessage repeated_lazy_message_extension = 57
+      [lazy = true];
 
   // Singular with defaults
-  optional    int32 default_int32_extension    = 61 [default =  41    ];
-  optional    int64 default_int64_extension    = 62 [default =  42    ];
-  optional   uint32 default_uint32_extension   = 63 [default =  43    ];
-  optional   uint64 default_uint64_extension   = 64 [default =  44    ];
-  optional   sint32 default_sint32_extension   = 65 [default = -45    ];
-  optional   sint64 default_sint64_extension   = 66 [default =  46    ];
-  optional  fixed32 default_fixed32_extension  = 67 [default =  47    ];
-  optional  fixed64 default_fixed64_extension  = 68 [default =  48    ];
-  optional sfixed32 default_sfixed32_extension = 69 [default =  49    ];
-  optional sfixed64 default_sfixed64_extension = 70 [default = -50    ];
-  optional    float default_float_extension    = 71 [default =  51.5  ];
-  optional   double default_double_extension   = 72 [default =  52e3  ];
-  optional     bool default_bool_extension     = 73 [default = true   ];
-  optional   string default_string_extension   = 74 [default = "hello"];
-  optional    bytes default_bytes_extension    = 75 [default = "world"];
+  optional int32 default_int32_extension = 61 [default = 41];
+  optional int64 default_int64_extension = 62 [default = 42];
+  optional uint32 default_uint32_extension = 63 [default = 43];
+  optional uint64 default_uint64_extension = 64 [default = 44];
+  optional sint32 default_sint32_extension = 65 [default = -45];
+  optional sint64 default_sint64_extension = 66 [default = 46];
+  optional fixed32 default_fixed32_extension = 67 [default = 47];
+  optional fixed64 default_fixed64_extension = 68 [default = 48];
+  optional sfixed32 default_sfixed32_extension = 69 [default = 49];
+  optional sfixed64 default_sfixed64_extension = 70 [default = -50];
+  optional float default_float_extension = 71 [default = 51.5];
+  optional double default_double_extension = 72 [default = 52e3];
+  optional bool default_bool_extension = 73 [default = true];
+  optional string default_string_extension = 74 [default = "hello"];
+  optional bytes default_bytes_extension = 75 [default = "world"];
 
-  optional TestAllTypes.NestedEnum
-    default_nested_enum_extension = 81 [default = BAR];
-  optional ForeignEnum
-    default_foreign_enum_extension = 82 [default = FOREIGN_BAR];
+  optional TestAllTypes.NestedEnum default_nested_enum_extension = 81
+      [default = BAR];
+  optional ForeignEnum default_foreign_enum_extension = 82
+      [default = FOREIGN_BAR];
 
-  optional string default_string_piece_extension = 84 [ctype=STRING_PIECE,
-                                                       default="abc"];
-  optional string default_cord_extension = 85 [ctype=CORD, default="123"];
+  optional string default_string_piece_extension = 84
+      [ctype = STRING_PIECE, default = "abc"];
+  optional string default_cord_extension = 85 [ctype = CORD, default = "123"];
 
   // For oneof test
   optional uint32 oneof_uint32_extension = 111;
@@ -295,7 +298,7 @@ message TestNestedExtension {
   extend TestAllExtensions {
     // Check for bug where string extensions declared in tested scope did not
     // compile.
-    optional string test = 1002 [default="test"];
+    optional string test = 1002 [default = "test"];
     // Used to test if generated extension name is correct when there are
     // underscores.
     optional string nested_string_extension = 1003;
@@ -354,17 +357,17 @@ message TestRequired {
 
   extend TestAllExtensions {
     optional TestRequired single = 1000;
-    repeated TestRequired multi  = 1001;
+    repeated TestRequired multi = 1001;
   }
 
   // Pad the field count to 32 so that we can test that IsInitialized()
   // properly checks multiple elements of has_bits_.
-  optional int32 dummy4  =  4;
-  optional int32 dummy5  =  5;
-  optional int32 dummy6  =  6;
-  optional int32 dummy7  =  7;
-  optional int32 dummy8  =  8;
-  optional int32 dummy9  =  9;
+  optional int32 dummy4 = 4;
+  optional int32 dummy5 = 5;
+  optional int32 dummy6 = 6;
+  optional int32 dummy7 = 7;
+  optional int32 dummy8 = 8;
+  optional int32 dummy9 = 9;
   optional int32 dummy10 = 10;
   optional int32 dummy11 = 11;
   optional int32 dummy12 = 12;
@@ -422,8 +425,7 @@ message TestForeignNested {
 }
 
 // TestEmptyMessage is used to test unknown field support.
-message TestEmptyMessage {
-}
+message TestEmptyMessage {}
 
 // Like above, but declare all field numbers as potential extensions.  No
 // actual extensions should ever be defined for this type.
@@ -487,21 +489,25 @@ message TestIsInitialized {
 }
 
 // Test that groups have disjoint field numbers from their siblings and
-// parents.  This is NOT possible in proto1; only google.protobuf.  When attempting
-// to compile with proto1, this will emit an error; so we only include it
-// in protobuf_unittest_proto.
-message TestDupFieldNumber {                        // NO_PROTO1
-  optional int32 a = 1;                             // NO_PROTO1
-  optional group Foo = 2 { optional int32 a = 1; }  // NO_PROTO1
-  optional group Bar = 3 { optional int32 a = 1; }  // NO_PROTO1
-}                                                   // NO_PROTO1
+// parents.  This is NOT possible in proto1; only google.protobuf.  When
+// attempting to compile with proto1, this will emit an error; so we only
+// include it in protobuf_unittest_proto.
+message TestDupFieldNumber {  // NO_PROTO1
+  optional int32 a = 1;       // NO_PROTO1
+  optional group Foo = 2 {
+    optional int32 a = 1;
+  }  // NO_PROTO1
+  optional group Bar = 3 {
+    optional int32 a = 1;
+  }  // NO_PROTO1
+}  // NO_PROTO1
 
 // Additional messages for testing lazy fields.
 message TestEagerMessage {
-  optional TestAllTypes sub_message = 1 [lazy=false];
+  optional TestAllTypes sub_message = 1 [lazy = false];
 }
 message TestLazyMessage {
-  optional TestAllTypes sub_message = 1 [lazy=true];
+  optional TestAllTypes sub_message = 1 [lazy = true];
 }
 message TestEagerMaybeLazy {
   message NestedMessage {
@@ -519,7 +525,6 @@ message TestNestedMessageHasBits {
   }
   optional NestedMessage optional_nested_message = 1;
 }
-
 
 // Test an enum that has multiple values with the same number.
 enum TestEnumWithDupValue {
@@ -550,17 +555,16 @@ message TestCamelCaseFieldNames {
   optional string StringField = 2;
   optional ForeignEnum EnumField = 3;
   optional ForeignMessage MessageField = 4;
-  optional string StringPieceField = 5 [ctype=STRING_PIECE];
-  optional string CordField = 6 [ctype=CORD];
+  optional string StringPieceField = 5 [ctype = STRING_PIECE];
+  optional string CordField = 6 [ctype = CORD];
 
   repeated int32 RepeatedPrimitiveField = 7;
   repeated string RepeatedStringField = 8;
   repeated ForeignEnum RepeatedEnumField = 9;
   repeated ForeignMessage RepeatedMessageField = 10;
-  repeated string RepeatedStringPieceField = 11 [ctype=STRING_PIECE];
-  repeated string RepeatedCordField = 12 [ctype=CORD];
+  repeated string RepeatedStringPieceField = 11 [ctype = STRING_PIECE];
+  repeated string RepeatedCordField = 12 [ctype = CORD];
 }
-
 
 // We list fields out of order, to ensure that we're using field number and not
 // field index to determine serialization order.
@@ -578,7 +582,7 @@ message TestFieldOrderings {
     optional int32 bb = 1;
   }
 
-  optional NestedMessage optional_nested_message  = 200;
+  optional NestedMessage optional_nested_message = 200;
 }
 
 extend TestFieldOrderings {
@@ -610,10 +614,10 @@ message TestExtremeDefaultValues {
   optional bytes escaped_bytes = 1 [default = "\0\001\a\b\f\n\r\t\v\\\'\"\xfe"];
   optional uint32 large_uint32 = 2 [default = 0xFFFFFFFF];
   optional uint64 large_uint64 = 3 [default = 0xFFFFFFFFFFFFFFFF];
-  optional  int32 small_int32  = 4 [default = -0x7FFFFFFF];
-  optional  int64 small_int64  = 5 [default = -0x7FFFFFFFFFFFFFFF];
-  optional  int32 really_small_int32 = 21 [default = -0x80000000];
-  optional  int64 really_small_int64 = 22 [default = -0x8000000000000000];
+  optional int32 small_int32 = 4 [default = -0x7FFFFFFF];
+  optional int64 small_int64 = 5 [default = -0x7FFFFFFFFFFFFFFF];
+  optional int32 really_small_int32 = 21 [default = -0x80000000];
+  optional int64 really_small_int64 = 22 [default = -0x8000000000000000];
 
   // The default value here is UTF-8 for "\u1234".  (We could also just type
   // the UTF-8 text directly into this text file rather than escape it, but
@@ -646,13 +650,12 @@ message TestExtremeDefaultValues {
   optional string cpp_trigraph = 20 [default = "? \? ?? \?? \??? ??/ ?\?-"];
 
   // String defaults containing the character '\000'
-  optional string string_with_zero       = 23 [default = "hel\000lo"];
-  optional  bytes bytes_with_zero        = 24 [default = "wor\000ld"];
-  optional string string_piece_with_zero = 25 [ctype=STRING_PIECE,
-                                               default="ab\000c"];
-  optional string cord_with_zero         = 26 [ctype=CORD,
-                                               default="12\0003"];
-  optional string replacement_string     = 27 [default="${unknown}"];
+  optional string string_with_zero = 23 [default = "hel\000lo"];
+  optional bytes bytes_with_zero = 24 [default = "wor\000ld"];
+  optional string string_piece_with_zero = 25
+      [ctype = STRING_PIECE, default = "ab\000c"];
+  optional string cord_with_zero = 26 [ctype = CORD, default = "12\0003"];
+  optional string replacement_string = 27 [default = "${unknown}"];
 }
 
 message SparseEnumMessage {
@@ -759,8 +762,8 @@ message TestOneof2 {
   oneof foo {
     int32 foo_int = 1;
     string foo_string = 2;
-    string foo_cord = 3 [ctype=CORD];
-    string foo_string_piece = 4 [ctype=STRING_PIECE];
+    string foo_cord = 3 [ctype = CORD];
+    string foo_string_piece = 4 [ctype = STRING_PIECE];
     bytes foo_bytes = 5;
     NestedEnum foo_enum = 6;
     NestedMessage foo_message = 7;
@@ -768,19 +771,20 @@ message TestOneof2 {
       optional int32 a = 9;
       optional string b = 10;
     }
-    NestedMessage foo_lazy_message = 11 [lazy=true];
+    NestedMessage foo_lazy_message = 11 [lazy = true];
   }
 
   oneof bar {
     int32 bar_int = 12 [default = 5];
     string bar_string = 13 [default = "STRING"];
-    string bar_cord = 14 [ctype=CORD, default = "CORD"];
-    string bar_string_piece = 15 [ctype=STRING_PIECE, default = "SPIECE"];
+    string bar_cord = 14 [ctype = CORD, default = "CORD"];
+    string bar_string_piece = 15 [ctype = STRING_PIECE, default = "SPIECE"];
     bytes bar_bytes = 16 [default = "BYTES"];
     NestedEnum bar_enum = 17 [default = BAR];
     string bar_string_with_empty_default = 20 [default = ""];
-    string bar_cord_with_empty_default = 21 [ctype=CORD, default = ""];
-    string bar_string_piece_with_empty_default = 22 [ctype=STRING_PIECE, default = ""];
+    string bar_cord_with_empty_default = 21 [ctype = CORD, default = ""];
+    string bar_string_piece_with_empty_default = 22
+        [ctype = STRING_PIECE, default = ""];
     bytes bar_bytes_with_empty_default = 23 [default = ""];
   }
 
@@ -810,43 +814,42 @@ message TestRequiredOneof {
   }
 }
 
-
 // Test messages for packed fields
 
 message TestPackedTypes {
-  repeated    int32 packed_int32    =  90 [packed = true];
-  repeated    int64 packed_int64    =  91 [packed = true];
-  repeated   uint32 packed_uint32   =  92 [packed = true];
-  repeated   uint64 packed_uint64   =  93 [packed = true];
-  repeated   sint32 packed_sint32   =  94 [packed = true];
-  repeated   sint64 packed_sint64   =  95 [packed = true];
-  repeated  fixed32 packed_fixed32  =  96 [packed = true];
-  repeated  fixed64 packed_fixed64  =  97 [packed = true];
-  repeated sfixed32 packed_sfixed32 =  98 [packed = true];
-  repeated sfixed64 packed_sfixed64 =  99 [packed = true];
-  repeated    float packed_float    = 100 [packed = true];
-  repeated   double packed_double   = 101 [packed = true];
-  repeated     bool packed_bool     = 102 [packed = true];
-  repeated ForeignEnum packed_enum  = 103 [packed = true];
+  repeated int32 packed_int32 = 90 [packed = true];
+  repeated int64 packed_int64 = 91 [packed = true];
+  repeated uint32 packed_uint32 = 92 [packed = true];
+  repeated uint64 packed_uint64 = 93 [packed = true];
+  repeated sint32 packed_sint32 = 94 [packed = true];
+  repeated sint64 packed_sint64 = 95 [packed = true];
+  repeated fixed32 packed_fixed32 = 96 [packed = true];
+  repeated fixed64 packed_fixed64 = 97 [packed = true];
+  repeated sfixed32 packed_sfixed32 = 98 [packed = true];
+  repeated sfixed64 packed_sfixed64 = 99 [packed = true];
+  repeated float packed_float = 100 [packed = true];
+  repeated double packed_double = 101 [packed = true];
+  repeated bool packed_bool = 102 [packed = true];
+  repeated ForeignEnum packed_enum = 103 [packed = true];
 }
 
 // A message with the same fields as TestPackedTypes, but without packing. Used
 // to test packed <-> unpacked wire compatibility.
 message TestUnpackedTypes {
-  repeated    int32 unpacked_int32    =  90 [packed = false];
-  repeated    int64 unpacked_int64    =  91 [packed = false];
-  repeated   uint32 unpacked_uint32   =  92 [packed = false];
-  repeated   uint64 unpacked_uint64   =  93 [packed = false];
-  repeated   sint32 unpacked_sint32   =  94 [packed = false];
-  repeated   sint64 unpacked_sint64   =  95 [packed = false];
-  repeated  fixed32 unpacked_fixed32  =  96 [packed = false];
-  repeated  fixed64 unpacked_fixed64  =  97 [packed = false];
-  repeated sfixed32 unpacked_sfixed32 =  98 [packed = false];
-  repeated sfixed64 unpacked_sfixed64 =  99 [packed = false];
-  repeated    float unpacked_float    = 100 [packed = false];
-  repeated   double unpacked_double   = 101 [packed = false];
-  repeated     bool unpacked_bool     = 102 [packed = false];
-  repeated ForeignEnum unpacked_enum  = 103 [packed = false];
+  repeated int32 unpacked_int32 = 90 [packed = false];
+  repeated int64 unpacked_int64 = 91 [packed = false];
+  repeated uint32 unpacked_uint32 = 92 [packed = false];
+  repeated uint64 unpacked_uint64 = 93 [packed = false];
+  repeated sint32 unpacked_sint32 = 94 [packed = false];
+  repeated sint64 unpacked_sint64 = 95 [packed = false];
+  repeated fixed32 unpacked_fixed32 = 96 [packed = false];
+  repeated fixed64 unpacked_fixed64 = 97 [packed = false];
+  repeated sfixed32 unpacked_sfixed32 = 98 [packed = false];
+  repeated sfixed64 unpacked_sfixed64 = 99 [packed = false];
+  repeated float unpacked_float = 100 [packed = false];
+  repeated double unpacked_double = 101 [packed = false];
+  repeated bool unpacked_bool = 102 [packed = false];
+  repeated ForeignEnum unpacked_enum = 103 [packed = false];
 }
 
 message TestPackedExtensions {
@@ -854,20 +857,20 @@ message TestPackedExtensions {
 }
 
 extend TestPackedExtensions {
-  repeated    int32 packed_int32_extension    =  90 [packed = true];
-  repeated    int64 packed_int64_extension    =  91 [packed = true];
-  repeated   uint32 packed_uint32_extension   =  92 [packed = true];
-  repeated   uint64 packed_uint64_extension   =  93 [packed = true];
-  repeated   sint32 packed_sint32_extension   =  94 [packed = true];
-  repeated   sint64 packed_sint64_extension   =  95 [packed = true];
-  repeated  fixed32 packed_fixed32_extension  =  96 [packed = true];
-  repeated  fixed64 packed_fixed64_extension  =  97 [packed = true];
-  repeated sfixed32 packed_sfixed32_extension =  98 [packed = true];
-  repeated sfixed64 packed_sfixed64_extension =  99 [packed = true];
-  repeated    float packed_float_extension    = 100 [packed = true];
-  repeated   double packed_double_extension   = 101 [packed = true];
-  repeated     bool packed_bool_extension     = 102 [packed = true];
-  repeated ForeignEnum packed_enum_extension  = 103 [packed = true];
+  repeated int32 packed_int32_extension = 90 [packed = true];
+  repeated int64 packed_int64_extension = 91 [packed = true];
+  repeated uint32 packed_uint32_extension = 92 [packed = true];
+  repeated uint64 packed_uint64_extension = 93 [packed = true];
+  repeated sint32 packed_sint32_extension = 94 [packed = true];
+  repeated sint64 packed_sint64_extension = 95 [packed = true];
+  repeated fixed32 packed_fixed32_extension = 96 [packed = true];
+  repeated fixed64 packed_fixed64_extension = 97 [packed = true];
+  repeated sfixed32 packed_sfixed32_extension = 98 [packed = true];
+  repeated sfixed64 packed_sfixed64_extension = 99 [packed = true];
+  repeated float packed_float_extension = 100 [packed = true];
+  repeated double packed_double_extension = 101 [packed = true];
+  repeated bool packed_bool_extension = 102 [packed = true];
+  repeated ForeignEnum packed_enum_extension = 103 [packed = true];
 }
 
 message TestUnpackedExtensions {
@@ -875,20 +878,20 @@ message TestUnpackedExtensions {
 }
 
 extend TestUnpackedExtensions {
-  repeated    int32 unpacked_int32_extension    =  90 [packed = false];
-  repeated    int64 unpacked_int64_extension    =  91 [packed = false];
-  repeated   uint32 unpacked_uint32_extension   =  92 [packed = false];
-  repeated   uint64 unpacked_uint64_extension   =  93 [packed = false];
-  repeated   sint32 unpacked_sint32_extension   =  94 [packed = false];
-  repeated   sint64 unpacked_sint64_extension   =  95 [packed = false];
-  repeated  fixed32 unpacked_fixed32_extension  =  96 [packed = false];
-  repeated  fixed64 unpacked_fixed64_extension  =  97 [packed = false];
-  repeated sfixed32 unpacked_sfixed32_extension =  98 [packed = false];
-  repeated sfixed64 unpacked_sfixed64_extension =  99 [packed = false];
-  repeated    float unpacked_float_extension    = 100 [packed = false];
-  repeated   double unpacked_double_extension   = 101 [packed = false];
-  repeated     bool unpacked_bool_extension     = 102 [packed = false];
-  repeated ForeignEnum unpacked_enum_extension  = 103 [packed = false];
+  repeated int32 unpacked_int32_extension = 90 [packed = false];
+  repeated int64 unpacked_int64_extension = 91 [packed = false];
+  repeated uint32 unpacked_uint32_extension = 92 [packed = false];
+  repeated uint64 unpacked_uint64_extension = 93 [packed = false];
+  repeated sint32 unpacked_sint32_extension = 94 [packed = false];
+  repeated sint64 unpacked_sint64_extension = 95 [packed = false];
+  repeated fixed32 unpacked_fixed32_extension = 96 [packed = false];
+  repeated fixed64 unpacked_fixed64_extension = 97 [packed = false];
+  repeated sfixed32 unpacked_sfixed32_extension = 98 [packed = false];
+  repeated sfixed64 unpacked_sfixed64_extension = 99 [packed = false];
+  repeated float unpacked_float_extension = 100 [packed = false];
+  repeated double unpacked_double_extension = 101 [packed = false];
+  repeated bool unpacked_bool_extension = 102 [packed = false];
+  repeated ForeignEnum unpacked_enum_extension = 103 [packed = false];
 }
 
 // Used by ExtensionSetTest/DynamicExtensions.  The test actually builds
@@ -921,15 +924,15 @@ message TestRepeatedScalarDifferentTagSizes {
   // in TestAllTypes didn't trigger the check.
   repeated fixed32 repeated_fixed32 = 12;
   // Check for a varint type, just for good measure.
-  repeated int32   repeated_int32   = 13;
+  repeated int32 repeated_int32 = 13;
 
   // These have two-byte tags.
   repeated fixed64 repeated_fixed64 = 2046;
-  repeated int64   repeated_int64   = 2047;
+  repeated int64 repeated_int64 = 2047;
 
   // Three byte tags.
-  repeated float   repeated_float   = 262142;
-  repeated uint64  repeated_uint64  = 262143;
+  repeated float repeated_float = 262142;
+  repeated uint64 repeated_uint64 = 262143;
 }
 
 // Test that if an optional or required message/group field appears multiple
@@ -977,7 +980,7 @@ message TestMergeException {
 
 message TestCommentInjectionMessage {
   // */ <- This should not close the generated doc comment
-  optional string a = 1 [default="*/ <- Neither should this."];
+  optional string a = 1 [default = "*/ <- Neither should this."];
 }
 
 // Used to check that the c++ code generator re-orders messages to reduce
@@ -991,21 +994,19 @@ message TestMessageSize {
   optional int64 m6 = 6;
 }
 
-
 // Test that RPC services work.
-message FooRequest  {}
+message FooRequest {}
 message FooResponse {}
 
 message FooClientMessage {}
-message FooServerMessage{}
+message FooServerMessage {}
 
 service TestService {
   rpc Foo(FooRequest) returns (FooResponse);
   rpc Bar(BarRequest) returns (BarResponse);
 }
 
-
-message BarRequest  {}
+message BarRequest {}
 message BarResponse {}
 
 message TestJsonName {
@@ -1042,7 +1043,7 @@ message TestHugeFieldNumbers {
     bytes oneof_bytes = 536870014;
   }
 
-  extensions  536860000 to 536869999;
+  extensions 536860000 to 536869999;
 }
 
 extend TestHugeFieldNumbers {
@@ -1066,21 +1067,10 @@ extend TestExtensionInsideTable {
   optional int32 test_extension_inside_table_extension = 5;
 }
 
-// NOTE(b/202996544): Intentionally nested to mirror go/glep.
 message TestNestedGroupExtensionOuter {
   optional group Layer1OptionalGroup = 1 {
     repeated group Layer2RepeatedGroup = 2 {
-      extensions 3
-        // NOTE: extension metadata is not supported due to targets such as
-        // `//third_party/protobuf_legacy_opensource/src:shell_scripts_test`,
-        // eee https://screenshot.googleplex.com/Axz2QD8nxjdpyFF
-        //[metadata = {
-        // NOTE: can't write type there due to some clever build gen code at
-        // http://google3/net/proto2/internal/BUILD;l=1247;rcl=411090862
-        // type: "protobuf_unittest.TestNestedGroupExtensionInnerExtension",
-        // name: "inner",
-        // }]
-        ;
+      extensions 3;
       optional string another_field = 6;
     }
     repeated group Layer2AnotherOptionalRepeatedGroup = 4 {
@@ -1090,7 +1080,7 @@ message TestNestedGroupExtensionOuter {
 }
 
 message TestNestedGroupExtensionInnerExtension {
-  optional string inner_name= 1;
+  optional string inner_name = 1;
 }
 
 extend TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2RepeatedGroup {
@@ -1199,7 +1189,7 @@ enum VeryLargeEnum {
   ENUM_LABEL_98 = 98;
   ENUM_LABEL_99 = 99;
   ENUM_LABEL_100 = 100;
-};
+}
 
 message TestExtensionRangeSerialize {
   optional int32 foo_one = 1;
@@ -1230,114 +1220,114 @@ message TestExtensionRangeSerialize {
 }
 
 message TestVerifyInt32Simple {
-    optional int32 optional_int32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional int32 optional_int32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 }
 
 message TestVerifyInt32 {
-    optional int32 optional_int32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional int32 optional_int32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyMostlyInt32 {
-    optional int64 optional_int64_30 = 30;
+  optional int64 optional_int64_30 = 30;
 
-    optional int32 optional_int32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_3 = 3;
-    optional int32 optional_int32_4 = 4;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional int32 optional_int32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_3 = 3;
+  optional int32 optional_int32_4 = 4;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyMostlyInt32BigFieldNumber {
-    optional int64 optional_int64_30 = 30;
-    optional int32 optional_int32_300 = 300;
+  optional int64 optional_int64_30 = 30;
+  optional int32 optional_int32_300 = 300;
 
-    optional int32 optional_int32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_3 = 3;
-    optional int32 optional_int32_4 = 4;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional int32 optional_int32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_3 = 3;
+  optional int32 optional_int32_4 = 4;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyUint32Simple {
-    optional uint32 optional_uint32_1 = 1;
-    optional uint32 optional_uint32_2 = 2;
-    optional uint32 optional_uint32_63 = 63;
-    optional uint32 optional_uint32_64 = 64;
+  optional uint32 optional_uint32_1 = 1;
+  optional uint32 optional_uint32_2 = 2;
+  optional uint32 optional_uint32_63 = 63;
+  optional uint32 optional_uint32_64 = 64;
 }
 
 message TestVerifyUint32 {
-    optional uint32 optional_uint32_1 = 1;
-    optional uint32 optional_uint32_2 = 2;
-    optional uint32 optional_uint32_63 = 63;
-    optional uint32 optional_uint32_64 = 64;
+  optional uint32 optional_uint32_1 = 1;
+  optional uint32 optional_uint32_2 = 2;
+  optional uint32 optional_uint32_63 = 63;
+  optional uint32 optional_uint32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyOneUint32 {
-    optional uint32 optional_uint32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional uint32 optional_uint32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyOneInt32BigFieldNumber {
-    optional int32 optional_int32_65 = 65;
+  optional int32 optional_int32_65 = 65;
 
-    optional int64 optional_int64_1 = 1;
-    optional int64 optional_int64_2 = 2;
-    optional int64 optional_int64_63 = 63;
-    optional int64 optional_int64_64 = 64;
+  optional int64 optional_int64_1 = 1;
+  optional int64 optional_int64_2 = 2;
+  optional int64 optional_int64_63 = 63;
+  optional int64 optional_int64_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyInt32BigFieldNumber {
-    optional int32 optional_int32_1000 = 1000;
-    optional int32 optional_int32_65 = 65;
+  optional int32 optional_int32_1000 = 1000;
+  optional int32 optional_int32_65 = 65;
 
-    optional int32 optional_int32_1 = 1;
-    optional int32 optional_int32_2 = 2;
-    optional int32 optional_int32_63 = 63;
-    optional int32 optional_int32_64 = 64;
+  optional int32 optional_int32_1 = 1;
+  optional int32 optional_int32_2 = 2;
+  optional int32 optional_int32_63 = 63;
+  optional int32 optional_int32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyUint32BigFieldNumber {
-    optional uint32 optional_uint32_1000 = 1000;
-    optional uint32 optional_uint32_65 = 65;
+  optional uint32 optional_uint32_1000 = 1000;
+  optional uint32 optional_uint32_65 = 65;
 
-    optional uint32 optional_uint32_1 = 1;
-    optional uint32 optional_uint32_2 = 2;
-    optional uint32 optional_uint32_63 = 63;
-    optional uint32 optional_uint32_64 = 64;
+  optional uint32 optional_uint32_1 = 1;
+  optional uint32 optional_uint32_2 = 2;
+  optional uint32 optional_uint32_63 = 63;
+  optional uint32 optional_uint32_64 = 64;
 
-    optional TestAllTypes optional_all_types = 9;
-    repeated TestAllTypes repeated_all_types = 10;
+  optional TestAllTypes optional_all_types = 9;
+  repeated TestAllTypes repeated_all_types = 10;
 }
 
 message TestVerifyBigFieldNumberUint32 {
@@ -1358,7 +1348,6 @@ message TestVerifyBigFieldNumberUint32 {
   optional Nested optional_nested = 1;
 }
 
-
 // This message contains different kind of enums to exercise the different
 // parsers in table-driven.
 message EnumParseTester {
@@ -1366,7 +1355,7 @@ message EnumParseTester {
     SEQ_SMALL_0_DEFAULT = 0;
     SEQ_SMALL_0_1 = 1;
     SEQ_SMALL_0_2 = 2;
-  };
+  }
   optional SeqSmall0 optional_seq_small_0_lowfield = 1;
   optional SeqSmall0 optional_seq_small_0_midfield = 1001;
   optional SeqSmall0 optional_seq_small_0_hifield = 1000001;
@@ -1381,7 +1370,7 @@ message EnumParseTester {
     SEQ_SMALL_1_DEFAULT = 1;
     SEQ_SMALL_1_2 = 2;
     SEQ_SMALL_1_3 = 3;
-  };
+  }
   optional SeqSmall1 optional_seq_small_1_lowfield = 4;
   optional SeqSmall1 optional_seq_small_1_midfield = 1004;
   optional SeqSmall1 optional_seq_small_1_hifield = 1000004;
@@ -1428,7 +1417,7 @@ message EnumParseTester {
     SEQ_LARGE_31 = 31;
     SEQ_LARGE_32 = 32;
     SEQ_LARGE_33 = 33;
-  };
+  }
   optional SeqLarge optional_seq_large_lowfield = 7;
   optional SeqLarge optional_seq_large_midfield = 1007;
   optional SeqLarge optional_seq_large_hifield = 1000007;
@@ -1446,7 +1435,7 @@ message EnumParseTester {
     ARBITRARY_3 = 213213;
     ARBITRARY_MIN = -2147483648;
     ARBITRARY_MAX = 2147483647;
-  };
+  }
   optional Arbitrary optional_arbitrary_lowfield = 10;
   optional Arbitrary optional_arbitrary_midfield = 1010;
   optional Arbitrary optional_arbitrary_hifield = 1000010;
@@ -1459,5 +1448,4 @@ message EnumParseTester {
 
   // An arbitrary field we can append to to break the runs of repeated fields.
   optional int32 other_field = 99;
-};
-
+}

@@ -24,11 +24,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	descpb "google.golang.org/protobuf/types/descriptorpb"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 //go:embed testdata/*
@@ -42,7 +43,7 @@ func ParseFileSet() *protoregistry.Files {
 		panic(err)
 	}
 
-	fds := new(descriptorpb.FileDescriptorSet)
+	fds := new(descpb.FileDescriptorSet)
 	if err := proto.Unmarshal(data, fds); err != nil {
 		panic(err)
 	}
