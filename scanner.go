@@ -12,7 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package protoscope ...
+// package protoscope implements an assembler and disassembler for the Protoscope language.
+// This language is specified in language.txt.
+//
+// The assembler consumes a string containing Protoscope tokens and outputs a Protobuf-encoded
+// binary blob based on those tokens. The entry point for the assembler is the Scanner type.
+//
+// The disassembler consumes a binary blob and attempts to produce reasonable Protoscope tokens that
+// can be reassembled into the original binary. It uses a number of heuristics to accomplish this,
+// optionally incorporating a message descriptor to aid with disassembly. The entry point for the
+// disassembler is the Write function.
+
 package protoscope
 
 import (
@@ -28,7 +38,7 @@ import (
 	_ "embed"
 )
 
-// The contents of language.text.
+// LanguageTxt contains the contents of language.txt, which specifies the Protoscope language.
 //
 //go:embed language.txt
 var LanguageTxt string
@@ -116,6 +126,7 @@ var (
 	// 3: The wire type, including the colon, if this is a tag.
 	// 4: The wire type expression, which may be empty if it is inferred.
 	regexpIntOrTag = regexp.MustCompile(`^-?([0-9]+|0x[0-9a-fA-F]+)(z|i32|i64)?(:(\w*))?$`)
+
 	regexpDecFp    = regexp.MustCompile(`^(-?[0-9]+\.[0-9]+(?:[eE]-?[0-9]+)?)(i32|i64)?$`)
 	regexpHexFp    = regexp.MustCompile(`^(-?0x[0-9a-fA-F]+\.[0-9a-fA-F]+(?:[pP]-?[0-9]+)?)(i32|i64)?$`)
 	regexpLongForm = regexp.MustCompile(`^long-form:([0-9]+)$`)
@@ -421,7 +432,7 @@ loop:
 			}
 
 			if value>>61 != 0 && value>>61 != -1 {
-				return token{}, &ParseError{start, errors.New("field number too large for three extra bits for the wire type.")}
+				return token{}, &ParseError{start, errors.New("field number too large for three extra bits for the wire type")}
 			}
 			fieldNumber = value
 

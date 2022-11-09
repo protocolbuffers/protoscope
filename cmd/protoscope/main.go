@@ -54,13 +54,13 @@ var (
 )
 
 func main() {
-	if err := Main(); err != nil {
+	if err := realMain(); err != nil {
 		fmt.Fprintln(os.Stderr, "protoscope:", err)
 		os.Exit(1)
 	}
 }
 
-func Main() error {
+func realMain() error {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [-s] [OPTION...] [INPUT]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Assemble a Protoscope file to binary, or inspect binary data as Protoscope text.\n")
@@ -154,8 +154,7 @@ func Main() error {
 
 		outBytes, err = scanner.Exec()
 		if err != nil {
-			return fmt.Errorf("syntax error: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("syntax error: %s", err)
 		}
 	} else {
 		outBytes = []byte(protoscope.Write(inBytes, protoscope.WriterOptions{
