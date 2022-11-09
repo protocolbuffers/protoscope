@@ -40,7 +40,7 @@ func (s *Stack[T]) Pop() T {
 	return popped
 }
 
-// Pop pops the top n elements off the stack and returns a slice containing
+// PopN pops the top n elements off the stack and returns a slice containing
 // copies. Panics if the stack is too small
 func (s *Stack[T]) PopN(n int) []T {
 	popped := make([]T, n)
@@ -58,7 +58,7 @@ func (s *Stack[T]) Peek() *T {
 	return &s.PeekN(1)[0]
 }
 
-// Peek returns the top n elements of the stack as another stack.
+// PeekN returns the top n elements of the stack as another stack.
 //
 // Returns nil if the stack is too small.
 func (s *Stack[T]) PeekN(n int) Stack[T] {
@@ -96,19 +96,22 @@ func (p *Printer) Current() *Line {
 	return p.Prev(0)
 }
 
-// Discards the current line
+// DiscardLine discards the current line
 func (p *Printer) DiscardLine() {
 	p.lines.Pop()
 }
 
+// A Mark is a mark in a Printer that can be used to discard all lines that follow it.
+//
+// See Printer.Reset().
 type Mark int
 
-// Makes a mark on the line buffer.
+// Mark returns a mark on the line buffer.
 func (p *Printer) Mark() Mark {
 	return Mark(len(p.lines))
 }
 
-// Discards all lines after the mark.
+// Reset discards all lines after the mark.
 func (p *Printer) Reset(m Mark) {
 	p.lines = p.lines[:m]
 }
@@ -130,18 +133,18 @@ func (p *Printer) Write(args ...any) {
 	fmt.Fprint(p.Current(), args...)
 }
 
-// Writes to the current line's buffer with Fprintf.
+// Writef writes to the current line's buffer with Fprintf.
 func (p *Printer) Writef(f string, args ...any) {
 	fmt.Fprintf(p.Current(), f, args...)
 }
 
-// Adds a new remark made from stringifying args.
+// Remark adds a new remark made by calling Fprint.
 func (p *Printer) Remark(args ...any) {
 	l := p.Current()
 	l.remarks = append(l.remarks, fmt.Sprint(args...))
 }
 
-// Adds a new remark made from stringifying args.
+// Remarkf adds a new remark made by calling Fprintf.
 func (p *Printer) Remarkf(f string, args ...any) {
 	l := p.Current()
 	l.remarks = append(l.remarks, fmt.Sprintf(f, args...))
@@ -214,6 +217,7 @@ func (p *Printer) Finish() []byte {
 	return out.Bytes()
 }
 
+// A BlockInfo is configuration options for a block.
 type BlockInfo struct {
 	// Whether this block will start and end with delimiters that do not need to
 	// have spaces placed before/after them, allowing for output like {x} instead
@@ -229,7 +233,7 @@ type BlockInfo struct {
 	start int
 }
 
-// Starts a new indentation block.
+// StartBlock starts a new indentation block.
 func (p *Printer) StartBlock(bi BlockInfo) {
 	if p.Current().indent != 0 {
 		panic("called StartBlock() too many times; this is a bug")
@@ -239,7 +243,7 @@ func (p *Printer) StartBlock(bi BlockInfo) {
 	p.Current().indent++
 }
 
-// Discards the current block and undoes its indentation.
+// DropBlock discards the current block and undoes its indentation.
 func (p *Printer) DropBlock() *Line {
 	bi := p.blocks.Pop()
 	start := &p.lines[bi.start]
@@ -247,7 +251,7 @@ func (p *Printer) DropBlock() *Line {
 	return start
 }
 
-// Finishes an indentation block; a call to this function must match up to
+// EndBlock finishes an indentation block; a call to this function must match up to
 // a corresponding previous StartBlock() call. Returns the starting line for the
 // block.
 //
@@ -308,7 +312,7 @@ func (p *Printer) EndBlock() *Line {
 	return start
 }
 
-// Folds the last count lines into lines with `cols` columns each.
+// FoldIntoColumns folds the last count lines into lines with `cols` columns each.
 func (p *Printer) FoldIntoColumns(cols, count int) {
 	toFold := p.lines.PopN(count)
 	widths := make([]int, cols)
