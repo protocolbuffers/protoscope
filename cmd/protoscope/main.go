@@ -25,10 +25,11 @@ import (
 
 	_ "embed"
 
+	descpb "google.golang.org/protobuf/types/descriptorpb"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/protocolbuffers/protoscope"
 )
@@ -107,7 +108,7 @@ func Main() error {
 			return err
 		}
 
-		var fds descriptorpb.FileDescriptorSet
+		var fds descpb.FileDescriptorSet
 		if err := proto.Unmarshal(descBytes, &fds); err != nil {
 			return err
 		}
